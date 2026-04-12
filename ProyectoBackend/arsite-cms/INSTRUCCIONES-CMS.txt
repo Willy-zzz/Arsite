@@ -1,0 +1,5 @@
+Ejecutar npm install para descargar las librerías de JavaScript.
+
+Configurar la URL de la API en el archivo .env del frontend.
+
+Ejecutar npm run dev para iniciar el servidor de desarrollo.

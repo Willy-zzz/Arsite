@@ -1,0 +1,28 @@
+* text=auto
+
+# PHP
+*.php text eol=lf
+
+# JS / Vue
+*.js text eol=lf
+*.vue text eol=lf
+
+# CSS
+*.css text eol=lf
+
+# Blade
+*.blade.php text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

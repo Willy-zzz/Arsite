@@ -1,0 +1,38 @@
+# Laravel
+/vendor/
+/node_modules/
+/public/storage
+/storage/*.key
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+.env
+.env.backup
+.phpunit.result.cache
+
+# Vite
+/public/build
+/dist
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Tests
+/coverage
+
+# Misc
+*.zip
+*.tar
+*.gz

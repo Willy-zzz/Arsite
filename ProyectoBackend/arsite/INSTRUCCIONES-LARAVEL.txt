@@ -1,0 +1,7 @@
+Ejecutar composer install para descargar las librerías de PHP.
+
+Crear el archivo .env basado en .env.example y configurar la base de datos.
+
+Ejecutar php artisan key:generate y php artisan migrate.
+
+Ejecutar php artisan storage:link para habilitar las imágenes.

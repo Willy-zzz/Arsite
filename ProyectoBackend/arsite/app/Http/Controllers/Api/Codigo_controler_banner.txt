@@ -1,0 +1,273 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Banner;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+
+class BannerController extends Controller
+{
+    /**
+     * Display a listing of banners
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $query = Banner::with('user:id,usu_nombre');
+
+        // Filtros opcionales (no desarrollados todavia)
+        if ($request->has('estatus')) {
+            $query->where('ban_estatus', $request->estatus);
+        }
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('ban_titulo', 'LIKE', "%{$search}%")
+                ->orWhere('ban_subtitulo', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Ordenamiento
+        $sortBy = $request->get('sort_by', 'ban_orden');
+        $sortDirection = $request->get('sort_direction', 'asc');
+        $query->orderBy($sortBy, $sortDirection);
+
+        $banners = $query->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'success' => true,
+            'data' => $banners,
+            'message' => 'Banners obtenidos exitosamente'
+        ]);
+    }
+
+    /**
+     * Store a newly created banner
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'ban_titulo' => 'required|string|max:100',
+            'ban_subtitulo' => 'required|string|max:200',
+            'ban_texto_boton' => 'required|string|max:50',
+            'ban_enlace_boton' => 'required|url|max:255',
+            'ban_imagen' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'ban_fecha_publicacion' => 'nullable|date',
+            'ban_fecha_terminacion' => 'nullable|date|after_or_equal:ban_fecha_publicacion',
+            'ban_orden' => 'nullable|integer|min:0',
+            'ban_estatus' => 'required|in:Publicado,Guardado'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Error de validación'
+            ], 422);
+        }
+
+        try {
+            $data = $validator->validated();
+            
+            // Manejar subida de imagen
+            if ($request->hasFile('ban_imagen')) {
+                $imagen = $request->file('ban_imagen');
+                $nombreImagen = time() . '_' . uniqid() . '.' . $imagen->getClientOriginalExtension();
+                $rutaImagen = $imagen->storeAs('banners', $nombreImagen, 'public');
+                $data['ban_imagen'] = $rutaImagen;
+            }
+
+            $data['user_id'] = auth()->id();
+
+            $banner = Banner::create($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $banner->load('user:id,usu_nombre'),
+                'message' => 'Banner creado exitosamente'
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el banner: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Display the specified banner
+     */
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $banner = Banner::with('user:id,usu_nombre')->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $banner,
+                'message' => 'Banner obtenido exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Banner no encontrado'
+            ], 404);
+        }
+    }
+
+    /**
+     * Update the specified banner
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        try {
+            $banner = Banner::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'ban_titulo' => 'sometimes|string|max:100',
+                'ban_subtitulo' => 'sometimes|string|max:200',
+                'ban_texto_boton' => 'sometimes|string|max:50',
+                'ban_enlace_boton' => 'sometimes|url|max:255',
+                'ban_imagen' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'ban_fecha_publicacion' => 'sometimes|date',
+                'ban_fecha_terminacion' => 'sometimes|date|after:ban_fecha_publicacion',
+                'ban_orden' => 'sometimes|integer|min:0',
+                'ban_estatus' => 'sometimes|in:Publicado,Guardado'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors(),
+                    'message' => 'Error de validación'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            // Manejar actualización de imagen
+            if ($request->hasFile('ban_imagen')) {
+                // Eliminar imagen anterior
+                if ($banner->ban_imagen && Storage::disk('public')->exists($banner->ban_imagen)) {
+                    Storage::disk('public')->delete($banner->ban_imagen);
+                }
+
+                // Subir nueva imagen
+                $imagen = $request->file('ban_imagen');
+                $nombreImagen = time() . '_' . uniqid() . '.' . $imagen->getClientOriginalExtension();
+                $rutaImagen = $imagen->storeAs('banners', $nombreImagen, 'public');
+                $data['ban_imagen'] = $rutaImagen;
+            }
+
+            $banner->update($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $banner->load('user:id,usu_nombre'),
+                'message' => 'Banner actualizado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el banner: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified banner
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $banner = Banner::findOrFail($id);
+
+            // Eliminar imagen del storage
+            if ($banner->ban_imagen && Storage::disk('public')->exists($banner->ban_imagen)) {
+                Storage::disk('public')->delete($banner->ban_imagen);
+            }
+
+            $banner->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Banner eliminado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el banner: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get banners for public display (published and within date range)
+     */
+    public function publicBanners(): JsonResponse
+    {
+        $banners = Banner::where('ban_estatus', 'Publicado')
+            ->where(function($query) {
+                $query->whereNull('ban_fecha_publicacion')
+                      ->orWhere('ban_fecha_publicacion', '<=', now());
+            })
+            ->where(function($query) {
+                $query->whereNull('ban_fecha_terminacion')
+                      ->orWhere('ban_fecha_terminacion', '>=', now());
+            })
+            ->orderBy('ban_orden', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $banners,
+            'message' => 'Banners públicos obtenidos exitosamente'
+        ]);
+    }
+
+    /**
+     * Update banner order
+     */
+    public function updateOrder(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'banners' => 'required|array',
+            'banners.*.id' => 'required|exists:banners,ban_id',
+            'banners.*.orden' => 'required|integer|min:0'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Error de validación'
+            ], 422);
+        }
+
+        try {
+            foreach ($request->banners as $bannerData) {
+                Banner::where('ban_id', $bannerData['id'])
+                    ->update(['ban_orden' => $bannerData['orden']]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden de banners actualizado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el orden: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+}
