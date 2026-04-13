@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('banners', function (Blueprint $table) {
             $table->id('ban_id');
-            $table->string('ban_titulo', 100);
-            $table->string('ban_subtitulo', 200);
+            $table->string('ban_titulo', 200);
+            $table->string('ban_subtitulo', 300);
             $table->string('ban_texto_boton',50)->default('Saber más');
             $table->string('ban_enlace_boton', 255);
             $table->string('ban_imagen',255);

@@ -30,6 +30,9 @@ Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 //Ruta pública para enviar mensaje desde el formulario de contacto
 Route::post('/contactos', [ContactoController::class, 'store']);
 
+// Ruta pública para obtener banners activos (carrusel)
+Route::get('/banners/public', [App\Http\Controllers\Api\BannerController::class, 'publicBanners']);
+
 //Rutas públicas del cms
 Route::get('clientes/public', [ClienteController::class, 'publicClientes']);
 

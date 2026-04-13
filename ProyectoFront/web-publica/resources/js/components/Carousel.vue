@@ -1,22 +1,18 @@
 <template>
-  <div class="carousel-container">
+  <div class="carousel-container" v-if="loading">
+    <div class="carousel-loading">Cargando carrusel...</div>
+  </div>
+  <div class="carousel-container" v-else-if="error">
+    <div class="carousel-error">Error al cargar: {{ error }}</div>
+  </div>
+  <div class="carousel-container" v-else-if="slides.length">
     <div class="carousel">
-      <!-- Contenedor de imagen con overlay -->
       <div class="slide-wrapper">
         <img :src="slides[current].image" :key="current" />
-        
-        <!-- Overlay oscuro para mejor legibilidad del texto -->
         <div class="overlay"></div>
-        
-        <!-- Contenido del slide -->
         <div class="slide-content">
-          <!-- Título -->
           <h2 class="slide-title" v-html="slides[current].title"></h2>
-          
-          <!-- Descripción -->
           <p class="slide-description" v-html="slides[current].description"></p>
-          
-          <!-- Botón con enlace -->
           <a 
             :href="slides[current].link.url" 
             class="slide-button"
@@ -28,11 +24,9 @@
         </div>
       </div>
 
-      <!-- Botones de navegación -->
       <button class="prev" @click="prev">‹</button>
       <button class="next" @click="next">›</button>
       
-      <!-- Indicadores de slides -->
       <div class="dots">
         <button 
           v-for="(slide, index) in slides" 
@@ -40,89 +34,78 @@
           class="dot"
           :class="{ active: current === index }"
           @click="goToSlide(index)"
-          :aria-label="`Ir al slide ${index + 1}`"
         ></button>
       </div>
     </div>
+  </div>
+  <div class="carousel-container" v-else>
+    <div class="carousel-empty">No hay Sliders disponibles</div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import axios from '@/axios'
 
-// Array con toda la información de cada slide
-const slides = ref([
-  {
-    image: '/img/carrusel/premio.jpg',
-    title: 'Premio de <span class="highlight">Lealtad</span> y <span class="highlight">Trayectoria</span> por 20 años',
-    description: '"Gracias a Fortinet por honrarnos con el Reconocimiento por 20 años de Lealtad y Trayectoria. ¡Un futuro más seguro nos aguarda juntos!" #Fortinet20Años',
+const slides = ref([])
+const current = ref(0)
+const loading = ref(true)
+const error = ref(null)
+
+// URL base del backend (sin /api)
+const backendBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '')
+
+const mapBannerToSlide = (banner) => {
+  return {
+    image: banner.ban_imagen?.startsWith('http') 
+      ? banner.ban_imagen 
+      : `${backendBaseUrl}/storage/${banner.ban_imagen}`,
+    title: banner.ban_titulo,
+    description: banner.ban_subtitulo,
     link: {
-      text: 'Ver Más',
-      url: 'https://www.facebook.com/ArSiteIntegradores/posts/pfbid04m6BYMxdT1y1ecacTKjbjV1qGwmJbSNGptSZezayFRWtNbceLGNC1hpQXjohDxaZl',
-      external: true
-    }
-  },
-  {
-    image: '/img/carrusel/wifi.webp',
-    title: '¿Que es <span class="highlight">802.11ax (WI-FI 6)?</span> Y porque los necesitas',
-    description: 'Su objetivo principal es mejorar cómo los access points gestionan varios dispositivos al mismo tiempo, priorizando el rendimiento estable para todos los clientes en lugar de solo la velocidad Wi-Fi.',
-    link: {
-      text: 'Leer Más',
-      url: 'https://www.hpe.com/es/es/what-is/wi-fi-6.html',
-      external: true
-    }
-  },
-  {
-    image: '/img/carrusel/via.png',
-    title: 'Conectividad <span class="highlight">sin VPN</span> con Aruba Virtual Intranet Access (VIA)',
-    description: 'Aruba permite acceso seguro sin VPN tradicional, usando control por identidad y políticas con soluciones como Aruba ClearPass y Aruba EdgeConnect, simplificando la conexión y mejorando la seguridad.',
-    link: {
-      text: 'Leer Más',
-      url: 'https://www.hpe.com/psnow/doc/a00135887enw',
-      external: true
-    }
-  },
-  {
-    image: '/img/carrusel/slide4.webp',
-    title: 'Nueva <span class="highlight">Colección</span> 2024',
-    description: 'Llega la temporada con nuestros productos más innovadores. Diseño moderno y funcional.',
-    link: {
-      text: 'Explorar',
-      url: '/nueva-coleccion',
-      external: false
-    }
-  },
-  // Puedes añadir más slides aquí
-  {
-    image: '/img/slide4.png',
-    title: 'Envío <span class="highlight">Gratis</span>',
-    description: 'En todos los pedidos superiores a $50. Disfruta de nuestras promociones especiales.',
-    link: {
-      text: 'Comprar Ahora',
-      url: '/tienda',
-      external: false
+      text: banner.ban_texto_boton || 'Saber más',
+      url: banner.ban_enlace_boton || '#',
+      external: banner.ban_enlace_boton?.startsWith('http') ?? false
     }
   }
-])
+}
 
-const current = ref(0)
+const fetchSlides = async () => {
+  try {
+    const response = await axios.get('/banners/public')
+    if (response.data.success && response.data.data.length) {
+      slides.value = response.data.data.map(mapBannerToSlide)
+    } else {
+      slides.value = []
+    }
+    loading.value = false
+  } catch (err) {
+    console.error('Error fetching banners:', err)
+    error.value = err.message
+    loading.value = false
+  }
+}
 
 const next = () => {
-  current.value = (current.value + 1) % slides.value.length
+  if (slides.value.length) {
+    current.value = (current.value + 1) % slides.value.length
+  }
 }
 
 const prev = () => {
-  current.value = (current.value - 1 + slides.value.length) % slides.value.length
+  if (slides.value.length) {
+    current.value = (current.value - 1 + slides.value.length) % slides.value.length
+  }
 }
 
 const goToSlide = (index) => {
   current.value = index
 }
 
-// Auto-slide cada 5 segundos
 let intervalId = null
 
 onMounted(() => {
+  fetchSlides()
   intervalId = setInterval(next, 8000)
 })
 

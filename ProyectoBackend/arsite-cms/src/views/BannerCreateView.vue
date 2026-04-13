@@ -262,7 +262,7 @@ const saveBanner = async (estatus = null) => {
 								<input
 									v-model="form.ban_titulo"
 									type="text"
-									maxlength="100"
+									maxlength="200"
 									placeholder="Ej: Innovación que transforma tu empresa"
 									class="w-full px-4 py-3 bg-gray-50 border rounded-xl text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-[#312AFF]/20 focus:border-[#312AFF]"
 									:class="
@@ -302,7 +302,7 @@ const saveBanner = async (estatus = null) => {
 								<input
 									v-model="form.ban_subtitulo"
 									type="text"
-									maxlength="200"
+									maxlength="300"
 									placeholder="Ej: Soluciones diseñadas para impulsar tu crecimiento"
 									class="w-full px-4 py-3 bg-gray-50 border rounded-xl text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-[#312AFF]/20 focus:border-[#312AFF]"
 									:class="

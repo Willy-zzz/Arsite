@@ -227,7 +227,7 @@ class BannerController extends BaseApiController
     public function publicBanners(Request $request): JsonResponse
     {
         try {
-            $now = CarbonImmutable::now();
+            $now = CarbonImmutable::now()->endOfDay();
             
             // Query builder con closures para condiciones OR
             $query = Banner::where('ban_estatus', 'Publicado')
@@ -418,8 +418,8 @@ class BannerController extends BaseApiController
         $isUpdate = !is_null($banner);
 
         $rules = [
-            'ban_titulo'       => ($isUpdate ? 'sometimes|' : 'required|') . 'string|max:100',
-            'ban_subtitulo'    => ($isUpdate ? 'sometimes|' : 'required|') . 'string|max:200',
+            'ban_titulo'       => ($isUpdate ? 'sometimes|' : 'required|') . 'string|max:200',
+            'ban_subtitulo'    => ($isUpdate ? 'sometimes|' : 'required|') . 'string|max:300',
             'ban_texto_boton'  => ($isUpdate ? 'sometimes|' : 'required|') . 'string|max:50',
             'ban_enlace_boton' => ($isUpdate ? 'sometimes|' : 'required|') . 'url|max:255',
             'ban_imagen'       => ($isUpdate ? 'nullable|sometimes|' : 'required|') . 'image|mimes:jpeg,png,jpg,gif,webp,svg|max:5120|dimensions:max_width=5000,max_height=5000',
@@ -444,7 +444,11 @@ class BannerController extends BaseApiController
 
         // En CREATE, fecha publicación debe ser >= hoy
         if (!$isUpdate) {
-            $rules['ban_fecha_publicacion'][] = 'after_or_equal:today';
+            $rules['ban_fecha_publicacion'][] = function ($attribute, $value, $fail) {
+                if (Carbon::parse($value)->lt(now()->startOfDay())) {
+                $fail('La fecha debe ser hoy o futura.');
+                }
+            };
         }
 
         $messages = [
@@ -490,9 +494,10 @@ class BannerController extends BaseApiController
 
     private function uploadImage($file): string
     {
-        // Nomenclatura: FechaHora_UniqID.Extensión
         $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        return $file->storeAs('banners', $filename, 'public');
+        // Guardar directamente en la carpeta public/storage/banners
+        $file->move(public_path('storage/banners'), $filename);
+        return 'banners/' . $filename; // Devuelve 'banners/archivo.jpg'
     }
 
     private function deleteImage(?string $path): void

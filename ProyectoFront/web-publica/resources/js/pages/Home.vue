@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Carrusel (siempre a ancho completo) -->
-    <Carousel />
+    <carousel></carousel>
 
     <!-- Contenido limitado por el contenedor global -->
     <div class="home container">

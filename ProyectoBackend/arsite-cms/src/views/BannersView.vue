@@ -1740,7 +1740,7 @@ onMounted(() => {
 									<input
 										v-model="form.ban_titulo"
 										type="text"
-										maxlength="100"
+										maxlength="200"
 										class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-200 outline-none text-gray-900"
 										:class="{ 'border-red-500': formErrors.ban_titulo }"
 										placeholder="Ej: Nuevo Producto Innovador"
@@ -1753,7 +1753,7 @@ onMounted(() => {
 											{{ formErrors.ban_titulo[0] }}
 										</p>
 										<p class="text-xs text-gray-500 ml-auto">
-											{{ form.ban_titulo.length }}/100 caracteres
+											{{ form.ban_titulo.length }}/200 caracteres
 										</p>
 									</div>
 								</div>
@@ -1781,7 +1781,7 @@ onMounted(() => {
 									</label>
 									<textarea
 										v-model="form.ban_subtitulo"
-										maxlength="200"
+										maxlength="300"
 										rows="3"
 										class="w-full px-4 py-1 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-200 outline-none resize-none text-gray-900"
 										:class="{ 'border-red-500': formErrors.ban_subtitulo }"
@@ -1795,7 +1795,7 @@ onMounted(() => {
 											{{ formErrors.ban_subtitulo[0] }}
 										</p>
 										<p class="text-xs text-gray-500 ml-auto">
-											{{ form.ban_subtitulo.length }}/200 caracteres
+											{{ form.ban_subtitulo.length }}/300 caracteres
 										</p>
 									</div>
 								</div>

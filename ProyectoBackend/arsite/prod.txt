@@ -1,0 +1,87 @@
+📝 RECORDATORIO PARA PRODUCCIÓN (Linux / Apache / Nginx)
+En producción NO uses la Opción 1 (guardar en public/storage/banners directamente). En su lugar, usa el sistema estándar de Laravel con enlaces simbólicos (storage:link), que es más seguro y eficiente.
+
+✅ Pasos a seguir en el servidor de producción:
+1. Revertir el método uploadImage a su versión original
+En BannerController.php, vuelve a dejar el método uploadImage como estaba originalmente (usando storeAs y el disco public):
+
+php
+
+```bash 
+private function uploadImage($file): string
+{
+    $filename = date('YmdHis') . '_' . uniqid() '.' . $file->getClientOriginalExtension();
+    return $file->storeAs('banners', $filename, 'public');
+}
+```
+
+2. Asegurar que config/filesystems.php tenga la configuración correcta
+El disco public debe apuntar a storage_path('app/public') (ya lo tienes así, pero verifica):
+
+php
+```bash
+'public' => [
+    'driver' => 'local',
+    'root' => storage_path('app/public'),
+    'url' => env('APP_URL').'/storage',
+    'visibility' => 'public',
+],
+```
+
+3. Ejecutar el enlace simbólico en el servidor
+Conectarte por SSH al servidor y ejecutar:
+
+```bash
+php artisan storage:link
+```
+Esto creará un enlace simbólico desde public/storage → storage/app/public.
+
+4. Mover las imágenes que ya tienes (si es necesario)
+Si en tu servidor ya hay imágenes guardadas en public/storage/banners (porque las subiste localmente y luego las copiaste), debes moverlas a storage/app/public/banners para que el enlace simbólico las pueda ver. Puedes hacerlo manualmente o con un comando:
+
+```bash
+mv public/storage/banners/* storage/app/public/banners/
+```
+
+5. Eliminar (o desactivar) la ruta personalizada y el ImageController
+En routes/web.php, comenta o elimina la ruta que creaste para /storage/{path}. Ya no la necesitarás porque el servidor web servirá las imágenes directamente desde public/storage sin pasar por PHP.
+
+php
+```bash
+// Route::get('/storage/{path}', [ImageController::class, 'show'])->where('path', '.*')->withoutMiddleware(['web']);
+```
+Si creaste ImageController.php, puedes borrarlo o dejarlo; no se usará.
+
+6. Verificar permisos de carpetas
+Asegúrate de que el usuario del servidor web (www-data, nginx, etc.) tenga permisos de lectura en storage/app/public y en public/storage. Normalmente basta con:
+
+```bash
+chmod -R 755 storage
+chmod -R 755 public/storage
+```
+
+7. Probar en producción
+Crea un nuevo banner desde el CMS.
+
+Verifica que la imagen se guarde en storage/app/public/banners.
+
+Accede a http://tu-dominio.com/storage/banners/nombre_imagen.jpg → debe verse sin errores 403.
+
+🚨 ¿Qué pasa si no haces estos cambios en producción?
+Si dejas la Opción 1 activa en un servidor real:
+
+Las imágenes se guardarán dentro de public/storage/banners, lo cual funciona, pero:
+
+Mezclas archivos subidos con el código fuente (dificulta backups y despliegues).
+
+En algunos entornos compartidos, la carpeta public puede no tener permisos de escritura.
+
+No aprovechas el sistema de discos de Laravel (dificulta cambiar a S3 después).
+
+Es menos seguro (un atacante podría intentar subir archivos ejecutables si hay una vulnerabilidad).
+
+📌 Resumen visual (local vs producción)
+Entorno	Método de guardado	Cómo se sirve la imagen
+Local (Win)	$file->move(public_path('storage/banners'))	Directamente desde /storage/banners/... (sin PHP)
+Producción	$file->storeAs('banners', ..., 'public')	A través del enlace simbólico (storage:link) + servidor web
+Con este recordatorio no se te olvidará nada. Si quieres, puedo ayudarte a crear un if (app()->environment('local')) para que el código se comporte diferente automáticamente sin tener que andar cambiando manualmente. ¿Te sirve?
