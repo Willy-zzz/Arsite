@@ -1779,6 +1779,7 @@ onMounted(() => {
 										</svg>
 										Subtítulo *
 									</label>
+									<!-- Limitar a 300 caracteres -->
 									<textarea
 										v-model="form.ban_subtitulo"
 										maxlength="300"
