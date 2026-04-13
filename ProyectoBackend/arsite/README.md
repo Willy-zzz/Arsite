@@ -388,7 +388,8 @@ No aprovechas el sistema de discos de Laravel (dificulta cambiar a S3 después).
 Es menos seguro (un atacante podría intentar subir archivos ejecutables si hay una vulnerabilidad).
 
 📌 Resumen visual (local vs producción)
-Entorno	Método de guardado	Cómo se sirve la imagen
-Local (Win)	$file->move(public_path('storage/banners'))	Directamente desde /storage/banners/... (sin PHP)
-Producción	$file->storeAs('banners', ..., 'public')	A través del enlace simbólico (storage:link) + servidor web
-Con este recordatorio no se te olvidará nada. Si quieres, puedo ayudarte a crear un if (app()->environment('local')) para que el código se comporte diferente automáticamente sin tener que andar cambiando manualmente. ¿Te sirve?
+
+| Entorno       | Método de guardado                                   | Cómo se sirve la imagen                                      |
+|---------------|------------------------------------------------------|--------------------------------------------------------------|
+| **Local (Win)**  | `$file->move(public_path('storage/banners'))`        | Directamente desde `/storage/banners/...` (sin PHP)          |
+| **Producción**   | `$file->storeAs('banners', ..., 'public')`           | A través del enlace simbólico (`storage:link`) + servidor web |
