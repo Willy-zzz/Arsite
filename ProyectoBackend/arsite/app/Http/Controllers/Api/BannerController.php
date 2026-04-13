@@ -492,6 +492,13 @@ class BannerController extends BaseApiController
         return Validator::make($request->all(), $rules, $messages);
     }
 
+    // private function uploadImage($file): string
+    // {
+    //     // Nomenclatura: FechaHora_UniqID.Extensión
+    //     $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+    //     return $file->storeAs('banners', $filename, 'public');
+    // }
+
     private function uploadImage($file): string
     {
         $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
