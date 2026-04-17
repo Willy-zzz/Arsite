@@ -71,7 +71,7 @@ const saveCliente = async (estatus = null) => {
 			formData.append('cli_logo', form.value.cli_logo)
 		}
 
-		const response = await api.post('/clients', formData, {
+		const response = await api.post('/clientes', formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
 		})
 

@@ -1,23 +1,48 @@
 <template>
+  <!-- Página de clientes con efecto de aparición al hacer scroll -->
   <div class="clients-page">
-    <!-- HERO FULL WIDTH -->
+    <!-- Componente Hero reutilizable con título y subtítulo -->
     <Hero title="Clientes" subtitle="Empresas que confían en nosotros" />
 
-    <!-- CONTENIDO LIMITADO POR EL CONTENEDOR GLOBAL -->
     <section class="clients-content container">
       <h2 class="section-title">Nuestros clientes</h2>
       <p class="section-subtitle">
         A lo largo de los años hemos colaborado con empresas de diversos sectores.
-        Aquí algunos de ellos:
       </p>
 
-      <div class="clients-grid">
-        <div v-for="client in clients" :key="client.id" class="client-card fade-in">
+      <!-- Skeleton loading: muestra 8 tarjetas esqueleto mientras se cargan los datos -->
+      <div v-if="loading" class="clients-grid">
+        <div v-for="n in 8" :key="n" class="client-card skeleton"></div>
+      </div>
+
+      <!-- Mensaje de error si la petición falla -->
+      <div v-else-if="error" class="clients-state clients-state-error">
+        {{ error }}
+      </div>
+
+      <!-- Mensaje cuando no hay clientes publicados -->
+      <div v-else-if="!clients.length" class="clients-state">
+        No hay clientes publicados por el momento.
+      </div>
+
+      <!-- Grid real de clientes, con animación individual mediante style -->
+      <div v-else class="clients-grid">
+        <div
+          v-for="(client, index) in clients"
+          :key="client.id"
+          ref="cards"
+          class="client-card"
+          :style="{ animationDelay: `${index * 0.05}s` }"
+        >
           <div class="client-logo">
-            <img :src="client.logo" :alt="client.name" />
+            <!-- Carga lazy de imágenes para mejorar rendimiento -->
+            <img
+              :src="client.logo"
+              :alt="client.name"
+              loading="lazy"
+            />
           </div>
           <h3 class="client-name">{{ client.name }}</h3>
-          <p v-if="client.industry" class="client-industry">{{ client.industry }}</p>
         </div>
       </div>
     </section>
@@ -25,29 +50,92 @@
 </template>
 
 <script setup>
+// Importa hooks de Vue, componente Hero y la instancia de axios configurada
+import { onMounted, ref, nextTick } from 'vue'
 import Hero from '@/components/Hero.vue'
+import axios from '@/axios'
 
-const clients = [
-  { id: 1, name: 'AutoSur', logo: '/img/clientes/autosur.jpg', industry: 'Automotriz' },
-  { id: 2, name: 'Gamesa', logo: '/img/clientes/gamesa.png', industry: 'Alimentos' },
-  { id: 3, name: 'Genomma Lab', logo: '/img/clientes/genomalab.jpg', industry: 'Farmacéutica / Consumo' },
-  { id: 4, name: 'ITVH', logo: '/img/clientes/itvh.png', industry: 'Educación' },
-  { id: 5, name: 'ISSET', logo: '/img/clientes/isset.png', industry: 'Salud / Gobierno' },
-  { id: 6, name: 'Grupo Modelo', logo: '/img/clientes/grupomodelo.png', industry: 'Bebidas (Cervecera)' },
-  { id: 7, name: 'Net Brains', logo: '/img/clientes/netbrains.png', industry: 'Tecnología / TI' },
-  { id: 8, name: 'Pemex', logo: '/img/clientes/pemex.png', industry: 'Energía / Petróleo' },
-  { id: 9, name: 'SAGARPA', logo: '/img/clientes/sagarpa.png', industry: 'Gobierno / Agricultura' },
-  { id: 10, name: 'Secretaria de Salud', logo: '/img/clientes/ss.jpg', industry: 'Salud / Gobierno' },
-  { id: 11, name: 'Secretaria de Seguridad Publica', logo: '/img/clientes/ssp.png', industry: 'Seguridad / Gobierno' },
-  { id: 12, name: 'UNAM', logo: '/img/clientes/unam.png', industry: 'Educación' },
-  { id: 13, name: 'Universidad Veracruzana', logo: '/img/clientes/uv.png', industry: 'Educación' },
-  { id: 14, name: 'Corsa', logo: '/img/clientes/corsa.png', industry: 'Construcción' },
-  { id: 15, name: 'FOVISSSTE', logo: '/img/clientes/fovissste.png', industry: 'Vivienda / Gobierno' },
+// Estado reactivo
+const clients = ref([])      // Lista de clientes
+const loading = ref(true)    // Indicador de carga
+const error = ref('')        // Mensaje de error
+const cards = ref([])        // Referencias a las tarjetas DOM para el IntersectionObserver
 
-]
+// URL base del backend (eliminando '/api' si existe)
+const backendBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '')
+
+// Construye la URL completa del logo
+const getClientLogoUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${backendBaseUrl}/storage/${path}`
+}
+
+// Transforma un cliente del formato de la API al formato interno del componente
+const mapClient = (client) => ({
+  id: client.cli_id,
+  name: client.cli_nombre,
+  logo: getClientLogoUrl(client.cli_logo),
+})
+
+// Obtiene los clientes públicos desde el backend
+const fetchClients = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await axios.get('/clientes/public', {
+      params: {
+        sort_by: 'cli_orden',
+        sort_direction: 'asc',
+      },
+    })
+
+    if (response.data?.success) {
+      clients.value = (response.data.data || []).map(mapClient)
+    } else {
+      error.value = 'No fue posible cargar los clientes.'
+    }
+  } catch (err) {
+    console.error(err)
+    error.value = 'Error al cargar los clientes.'
+  } finally {
+    loading.value = false
+
+    // Una vez que el DOM se ha actualizado, inicializa el observer
+    nextTick(() => {
+      initObserver()
+    })
+  }
+}
+
+// Configura un IntersectionObserver para agregar la clase 'show' cuando cada tarjeta entra en pantalla
+const initObserver = () => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('show')   // Activa la animación CSS
+          observer.unobserve(entry.target)     // Deja de observar esa tarjeta
+        }
+      })
+    },
+    { threshold: 0.1 }   // Se dispara cuando al menos el 10% del elemento es visible
+  )
+
+  // Observa cada tarjeta referenciada
+  cards.value.forEach((el) => {
+    if (el) observer.observe(el)
+  })
+}
+
+// Al montar el componente, se obtienen los clientes
+onMounted(fetchClients)
 </script>
 
 <style scoped>
+/* Estilos exclusivos del componente (scoped) */
+
 .clients-page {
   min-height: 100vh;
 }
@@ -62,215 +150,107 @@ const clients = [
   font-weight: 700;
   color: #65B3CA;
   text-align: center;
-  margin-bottom: 0.5rem;
 }
 
 .section-subtitle {
   text-align: center;
   color: #4a5568;
-  font-size: 1.2rem;
   margin-bottom: 3rem;
 }
 
+.clients-state {
+  text-align: center;
+  padding: 2rem;
+}
+
+.clients-state-error {
+  color: #b91c1c;
+}
+
+/* Grid responsivo de tarjetas */
 .clients-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 2rem;
-  margin-top: 2rem;
 }
 
+/* Estilo base de cada tarjeta: oculta inicialmente (opacity 0, desplazada) */
 .client-card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s;
-  border: 1px solid #eaeaea;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   padding: 1.5rem 1rem;
   text-align: center;
+  border: 1px solid #eee;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(30px);
+}
+
+/* Cuando el IntersectionObserver agrega la clase 'show', se ejecuta la animación */
+.client-card.show {
   animation: fadeInUp 0.6s ease forwards;
 }
 
+/* Efecto hover: levanta la tarjeta y cambia la sombra */
 .client-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 15px 30px rgba(101, 179, 202, 0.1);
-  border-color: #65B3CA;
 }
 
+/* Contenedor del logo */
 .client-logo {
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  transition: transform 0.4s ease;
-}
-
-.client-card:hover .client-logo {
-  transform: scale(1.05);
+  width: 100px;
+  height: 100px;
+  margin: auto;
 }
 
 .client-logo img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  filter: grayscale(0.2);
-  transition: filter 0.3s ease, transform 0.4s ease;
 }
 
-.client-card:hover .client-logo img {
-  filter: grayscale(0);
-}
-
+/* Nombre del cliente */
 .client-name {
-  font-size: 1.1rem;
+  margin-top: 1rem;
   font-weight: 600;
-  color: #1a202c;
-  margin-bottom: 0.25rem;
 }
 
-.client-industry {
-  font-size: 0.85rem;
-  color: #718096;
-  margin: 0;
-}
-
-/* Animación de entrada */
+/* Animación de entrada: desde abajo y transparente hasta su estado final */
 @keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(30px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* Retrasos escalonados para 20 elementos */
-.client-card:nth-child(1) {
-  animation-delay: 0.05s;
+/* Estilo para las tarjetas esqueleto (skeleton) durante la carga */
+.skeleton {
+  height: 150px;
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 37%,
+    #f0f0f0 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s infinite;
 }
 
-.client-card:nth-child(2) {
-  animation-delay: 0.1s;
+/* Animación de brillo (shimmer) para el skeleton */
+@keyframes shimmer {
+  0% { background-position: 100% 0 }
+  100% { background-position: -100% 0 }
 }
 
-.client-card:nth-child(3) {
-  animation-delay: 0.15s;
-}
-
-.client-card:nth-child(4) {
-  animation-delay: 0.2s;
-}
-
-.client-card:nth-child(5) {
-  animation-delay: 0.25s;
-}
-
-.client-card:nth-child(6) {
-  animation-delay: 0.3s;
-}
-
-.client-card:nth-child(7) {
-  animation-delay: 0.35s;
-}
-
-.client-card:nth-child(8) {
-  animation-delay: 0.4s;
-}
-
-.client-card:nth-child(9) {
-  animation-delay: 0.45s;
-}
-
-.client-card:nth-child(10) {
-  animation-delay: 0.5s;
-}
-
-.client-card:nth-child(11) {
-  animation-delay: 0.55s;
-}
-
-.client-card:nth-child(12) {
-  animation-delay: 0.6s;
-}
-
-.client-card:nth-child(13) {
-  animation-delay: 0.65s;
-}
-
-.client-card:nth-child(14) {
-  animation-delay: 0.7s;
-}
-
-.client-card:nth-child(15) {
-  animation-delay: 0.75s;
-}
-
-.client-card:nth-child(16) {
-  animation-delay: 0.8s;
-}
-
-.client-card:nth-child(17) {
-  animation-delay: 0.85s;
-}
-
-.client-card:nth-child(18) {
-  animation-delay: 0.9s;
-}
-
-.client-card:nth-child(19) {
-  animation-delay: 0.95s;
-}
-
-.client-card:nth-child(20) {
-  animation-delay: 1s;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .clients-content {
-    padding: 60px 0;
-  }
-
-  .section-title {
-    font-size: 2rem;
-  }
-
-  .section-subtitle {
-    font-size: 1rem;
-  }
-
-  .client-logo {
-    width: 100px;
-    height: 100px;
-  }
-}
-
+/* Responsive para móviles: dos columnas en lugar de auto-ajuste */
 @media (max-width: 480px) {
   .clients-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-
-  .client-card {
-    padding: 1rem 0.5rem;
-  }
-
-  .client-name {
-    font-size: 0.9rem;
-  }
-
-  .client-industry {
-    font-size: 0.75rem;
   }
 }
 </style>
