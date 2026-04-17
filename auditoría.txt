@@ -1,0 +1,119 @@
+# =========================================
+
+# PULL REQUEST - LOGGING ARSITE
+
+# =========================================
+
+Título:
+feat(logging): implementar sistema completo de auditoría en CMS y API pública
+
+---
+
+Resumen:
+Se implementa un sistema de logging estructurado y consistente para backend (CMS/API) y limpieza de logs en frontend.
+
+Objetivo:
+Mejorar auditoría, debugging y observabilidad en producción sin exponer datos sensibles.
+
+---
+
+Cambios incluidos:
+
+Backend (Laravel)
+
+* Helper central ApiAuditLogger
+* Middleware LogPublicApiAccess para endpoints públicos
+* Logs globales para respuestas 401 y 403
+* Logging en autenticación:
+
+  * login, logout, logout-all (info)
+  * intentos fallidos (warning)
+* Logging en CRUD:
+
+  * clientes y banners (create, update, delete)
+* Logging en storage:
+
+  * upload y delete (nombre, ruta, disco, usuario)
+  * errores de filesystem (error)
+* Estandarización de contexto:
+
+  * user_id, ip, route, method, status, duration, record_id
+* Sanitización:
+
+  * sin contraseñas, tokens ni traces innecesarios
+
+API pública
+
+* Logs de consumo:
+
+  * endpoint, método, IP, status, duración
+
+Frontend (CMS + web pública)
+
+* Logger central (utils/logger.js)
+* Eliminación de console.* en producción
+* Limpieza de logs en módulos clave
+
+---
+
+Cómo probar:
+
+1. Autenticación
+
+* Login correcto → log info
+* Login fallido → log warning
+* Logout → log info
+
+2. Clientes/Banners
+
+* Crear, editar y eliminar → logs info con user_id y record_id
+
+3. Storage
+
+* Subir archivo → log info
+* Eliminar archivo → log info
+* Forzar error → log error
+
+4. API pública
+
+* GET /api/clientes/public
+* GET /api/banners/public
+  → verificar logs con IP, endpoint, status y duración
+
+5. Seguridad
+
+* Acceso sin login → 401 (warning)
+* Acceso prohibido → 403 (warning)
+
+---
+
+Impacto / riesgos:
+
+* Incremento moderado de logs
+* No se registran datos sensibles
+* No afecta contratos de API
+
+---
+
+Checklist:
+
+[x] No hay dd(), dump() ni console.log en producción
+[x] Logs estructurados y consistentes
+[x] Sin datos sensibles en logs
+[x] Middleware aplicado a endpoints públicos
+[x] Manejo global de 401 y 403
+[x] Pruebas manuales realizadas
+
+---
+
+Review:
+
+* Backend: validar middleware, helper y controladores
+* Frontend: validar logger y limpieza de logs
+* Seguridad: validar protección de datos en logs
+
+---
+
+FIN
+
+# =========================================
