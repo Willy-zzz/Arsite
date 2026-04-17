@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import logger from '@/utils/logger'
 //import { compile } from 'vue'
 //import { meta } from 'eslint-plugin-vue'
 //import HomeView from '../views/HomeView.vue'
@@ -185,9 +186,9 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
 	const authStore = useAuthStore()
 
-	console.log('Router guard activado')
-	console.log(' Ir desde:', from.path)
-	console.log(' Ir a:', to.path)
+	logger.debug('Router guard activado')
+	logger.debug('Ir desde:', from.path)
+	logger.debug('Ir a:', to.path)
 
 	//Inicializar autenticación si hay token guardado
 	if (
@@ -233,7 +234,7 @@ router.beforeEach(async (to, from, next) => {
 
 		//Verificar si el usuario está pendiente y la ruta no permite pendientes
 		if (authStore.userStatus === 'Pendiente') {
-			console.log('Usuario con estado Pendiente, redirigir a setup-profile')
+			logger.info('Usuario con estado Pendiente, redirigir a setup-profile')
 			return next('/setup-profile')
 		}
 

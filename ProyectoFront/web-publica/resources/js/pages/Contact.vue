@@ -304,6 +304,7 @@ import { reactive, ref, onMounted } from 'vue'
 import axios from 'axios'
 import VueRecaptcha from 'vue3-recaptcha2'
 import Hero from '@/components/Hero.vue'
+import logger from '@/utils/logger'
 
 // Estado del formulario
 const form = reactive({
@@ -416,7 +417,7 @@ const handleSubmit = async () => {
     }
     
   } catch (error) {
-    console.error('Error al enviar formulario:', error)
+    logger.error('Error al enviar formulario de contacto', error)
     
     if (error.response) {
       switch (error.response.status) {

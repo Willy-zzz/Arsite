@@ -2,19 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Carbon\CarbonImmutable;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Traits\Exportable;
 
 class ClienteController extends BaseApiController
@@ -61,7 +58,9 @@ class ClienteController extends BaseApiController
 
         } catch (\Exception $e) {
             // Log del error para debugging (no exponer stack trace al cliente)
-            Log::error('Error index cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al listar clientes', $request, [
+                'event' => 'clientes.index.error',
+            ], $e);
             return response()->json([
                 'success' => false, 
                 'message' => 'Error interno'
@@ -97,7 +96,9 @@ class ClienteController extends BaseApiController
 
             // Subir logo si existe
             if ($request->hasFile('cli_logo')) {
-                $newLogo = $this->uploadLogo($request->file('cli_logo'));
+                $newLogo = $this->uploadLogo($request, $request->file('cli_logo'), [
+                    'action' => 'create',
+                ]);
                 $data['cli_logo'] = $newLogo;
             }
 
@@ -110,6 +111,13 @@ class ClienteController extends BaseApiController
             // Todo salió bien, confirmar transacción
             DB::commit();
 
+            ApiAuditLogger::info('Cliente creado', $request, [
+                'event' => 'clientes.create',
+                'record_id' => $cliente->cli_id,
+                'client_name' => $cliente->cli_nombre,
+                'file_path' => $cliente->cli_logo,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $cliente,
@@ -121,9 +129,17 @@ class ClienteController extends BaseApiController
             DB::rollBack();
             
             // Limpiar archivo subido si existe (evita archivos huérfanos)
-            if ($newLogo) $this->deleteLogo($newLogo);
+            if ($newLogo) {
+                $this->deleteLogo($request, $newLogo, [
+                    'action' => 'rollback_after_create_error',
+                ]);
+            }
 
-            Log::error('Error store cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al crear cliente', $request, [
+                'event' => 'clientes.create.error',
+                'client_name' => $request->input('cli_nombre'),
+                'file_path' => $newLogo,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -172,7 +188,10 @@ class ClienteController extends BaseApiController
 
             // Si hay archivo nuevo, subirlo
             if ($request->hasFile('cli_logo')) {
-                $newLogo = $this->uploadLogo($request->file('cli_logo'));
+                $newLogo = $this->uploadLogo($request, $request->file('cli_logo'), [
+                    'action' => 'update',
+                    'record_id' => $cliente->cli_id,
+                ]);
                 $data['cli_logo'] = $newLogo;
             }
 
@@ -187,8 +206,18 @@ class ClienteController extends BaseApiController
             // AHORA ES SEGURO borrar el logo viejo
             // Solo se elimina el logo viejo del disco si la transacción fue exitosa y subieron uno nuevo.
             if ($newLogo && $oldLogo) {
-                $this->deleteLogo($oldLogo);
+                $this->deleteLogo($request, $oldLogo, [
+                    'action' => 'replace_after_update',
+                    'record_id' => $cliente->cli_id,
+                ]);
             }
+
+            ApiAuditLogger::info('Cliente actualizado', $request, [
+                'event' => 'clientes.update',
+                'record_id' => $cliente->cli_id,
+                'client_name' => $cliente->cli_nombre,
+                'file_path' => $cliente->cli_logo,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -200,9 +229,19 @@ class ClienteController extends BaseApiController
             DB::rollBack();
             
             // Si falló la BD, limpiamos el logo NUEVO que acabamos de subir para no dejar basura
-            if ($newLogo) $this->deleteLogo($newLogo);
+            if ($newLogo) {
+                $this->deleteLogo($request, $newLogo, [
+                    'action' => 'rollback_after_update_error',
+                    'record_id' => $cliente->cli_id,
+                ]);
+            }
 
-            Log::error('Error update cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al actualizar cliente', $request, [
+                'event' => 'clientes.update.error',
+                'record_id' => $cliente->cli_id,
+                'client_name' => $request->input('cli_nombre', $cliente->cli_nombre),
+                'file_path' => $newLogo,
+            ], $e);
             return response()->json([
                 'success' => false, 
                 'message' => 'Error interno'
@@ -220,6 +259,8 @@ class ClienteController extends BaseApiController
         try {
             // Lock del registro para evitar modificaciones concurrentes
             $cliente = Cliente::where('cli_id', $cliente->cli_id)->lockForUpdate()->first();
+            $recordId = $cliente->cli_id;
+            $clientName = $cliente->cli_nombre;
             $logo = $cliente->cli_logo;
 
             // Eliminar de BD
@@ -227,10 +268,20 @@ class ClienteController extends BaseApiController
 
             // Eliminar archivo físico solo si existe el registro de la BD
             if ($logo) {
-                $this->deleteLogo($logo);
+                $this->deleteLogo($request, $logo, [
+                    'action' => 'delete',
+                    'record_id' => $recordId,
+                ]);
             }
 
             DB::commit();
+
+            ApiAuditLogger::info('Cliente eliminado', $request, [
+                'event' => 'clientes.delete',
+                'record_id' => $recordId,
+                'client_name' => $clientName,
+                'file_path' => $logo,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -239,7 +290,11 @@ class ClienteController extends BaseApiController
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error destroy cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al eliminar cliente', $request, [
+                'event' => 'clientes.delete.error',
+                'record_id' => $cliente->cli_id,
+                'client_name' => $cliente->cli_nombre,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -284,7 +339,9 @@ class ClienteController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error publicClientes: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al obtener clientes públicos', $request, [
+                'event' => 'clientes.public.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -322,7 +379,9 @@ class ClienteController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error statistics cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al obtener estadísticas de clientes', $request, [
+                'event' => 'clientes.statistics.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -368,7 +427,9 @@ class ClienteController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error updateOrder cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al actualizar orden de clientes', $request, [
+                'event' => 'clientes.reorder.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -404,7 +465,10 @@ class ClienteController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error bulkUpdateStatus cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al actualizar estatus de clientes en lote', $request, [
+                'event' => 'clientes.bulk_status.error',
+                'record_count' => count($request->ids ?? []),
+            ], $e);
             return response()->json([
                 'success' => false, 
                 'message' => 'Error interno'
@@ -443,10 +507,18 @@ class ClienteController extends BaseApiController
 
             // Eliminar archivos físicos
             foreach ($logos as $path) {
-                $this->deleteLogo($path);
-            }
+                    $this->deleteLogo($request, $path, [
+                        'action' => 'bulk_delete',
+                    ]);
+                }
 
             DB::commit();
+
+            ApiAuditLogger::info('Clientes eliminados en lote', $request, [
+                'event' => 'clientes.bulk_delete',
+                'record_ids' => $request->ids,
+                'deleted_count' => count($request->ids),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -456,7 +528,10 @@ class ClienteController extends BaseApiController
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error bulkDelete cliente: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al eliminar clientes en lote', $request, [
+                'event' => 'clientes.bulk_delete.error',
+                'record_ids' => $request->ids,
+            ], $e);
             return response()->json([
                 'success' => false, 
                 'message' => 'Error interno'
@@ -615,16 +690,42 @@ class ClienteController extends BaseApiController
      * @param \Illuminate\Http\UploadedFile $file
      * @return string - Path relativo en storage/app/public/clientes/
      */
-    private function uploadLogo($file): string
+    private function uploadLogo(Request $request, $file, array $context = []): string
     {
-        $ext = strtolower($file->getClientOriginalExtension());
+        try {
+            $ext = strtolower($file->getClientOriginalExtension());
 
-        // Nombre único: timestamp + id único
-        $filename = now()->format('YmdHis') . '_' . uniqid() . '.' . $ext;
+            // Nombre único: timestamp + id único
+            $filename = now()->format('YmdHis') . '_' . uniqid() . '.' . $ext;
 
-        // Guardar en: storage/app/public/clientes/
-        // Retorna: clientes/20250124153045_67890abcd.png
-        return $file->storeAs('clientes', $filename, 'public');
+            // Guardar en: storage/app/public/clientes/
+            // Retorna: clientes/20250124153045_67890abcd.png
+            $path = $file->storeAs('clientes', $filename, 'public');
+
+            ApiAuditLogger::info('Archivo de cliente subido', $request, ApiAuditLogger::storageContext(
+                'public',
+                $path,
+                $file,
+                array_merge([
+                    'event' => 'clientes.file.uploaded',
+                    'module' => 'clientes',
+                ], $context)
+            ));
+
+            return $path;
+        } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al subir archivo de cliente', $request, ApiAuditLogger::storageContext(
+                'public',
+                null,
+                $file,
+                array_merge([
+                    'event' => 'clientes.file.upload_error',
+                    'module' => 'clientes',
+                ], $context)
+            ), $e);
+
+            throw $e;
+        }
     }
 
     /**
@@ -635,10 +736,44 @@ class ClienteController extends BaseApiController
      * @param string|null $path - Path relativo (ej: clientes/archivo.jpg)
      * @return void
      */
-    private function deleteLogo(?string $path): void
+    private function deleteLogo(Request $request, ?string $path, array $context = []): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
+        try {
+            if (!$path) {
+                return;
+            }
+
+            if (!Storage::disk('public')->exists($path)) {
+                ApiAuditLogger::warning('Archivo de cliente no encontrado en storage', $request, array_merge([
+                    'event' => 'clientes.file.missing',
+                    'module' => 'clientes',
+                    'disk' => 'public',
+                    'file_path' => $path,
+                    'file_name' => basename($path),
+                ], $context));
+
+                return;
+            }
+
             Storage::disk('public')->delete($path);
+
+            ApiAuditLogger::info('Archivo de cliente eliminado', $request, array_merge([
+                'event' => 'clientes.file.deleted',
+                'module' => 'clientes',
+                'disk' => 'public',
+                'file_path' => $path,
+                'file_name' => basename($path),
+            ], $context));
+        } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al eliminar archivo de cliente', $request, array_merge([
+                'event' => 'clientes.file.delete_error',
+                'module' => 'clientes',
+                'disk' => 'public',
+                'file_path' => $path,
+                'file_name' => $path ? basename($path) : null,
+            ], $context), $e);
+
+            throw $e;
         }
     }
 

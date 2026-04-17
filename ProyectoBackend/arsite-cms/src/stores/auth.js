@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
 import router from '@/router'
+import logger from '@/utils/logger'
 
 export const useAuthStore = defineStore('auth', () => {
 	// State
@@ -88,7 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
 			}
 		} catch (err) {
 			//Si la validación falla, limpiar todo
-			console.error('Token inválido o expirado:', err)
+			logger.warn('Token inválido o expirado')
 			clearAuth()
 		}
 	}
@@ -117,7 +118,7 @@ export const useAuthStore = defineStore('auth', () => {
 				// Guardar en Storage
 				saveToStorage(newToken, newUser, remember)
 
-				console.log('Login exitoso:', {
+				logger.info('Login exitoso:', {
 					email: newUser.email,
 					rol: newUser.rol,
 					remember,
@@ -156,7 +157,7 @@ export const useAuthStore = defineStore('auth', () => {
 				message = err.message
 			}
 			error.value = message
-			console.error('Error en login:', message)
+			logger.warn('Error en login:', message)
 			return { success: false, message }
 		} finally {
 			loading.value = false
@@ -211,7 +212,7 @@ export const useAuthStore = defineStore('auth', () => {
 			}
 
 			error.value = message
-			console.error('Error en registro:', message)
+			logger.warn('Error en registro:', message)
 
 			// Devolvemos tanto el mensaje como el objeto de errores
 			return {
@@ -235,7 +236,7 @@ export const useAuthStore = defineStore('auth', () => {
 			// Llamar al endpoint de logout
 			await api.post('/logout')
 		} catch (err) {
-			console.error('Error al cerrar sesión:', err)
+			logger.warn('Error al cerrar sesión')
 		} finally {
 			// Limpiar estado local independientemente del resultado
 			clearAuth()
@@ -264,7 +265,7 @@ export const useAuthStore = defineStore('auth', () => {
 				storage.setItem('auth-user', JSON.stringify(user.value))
 			}
 		} catch (err) {
-			console.error('Error al obtener usuario:', err)
+			logger.warn('Error al obtener usuario autenticado')
 
 			//Si es 401, el token es inválido
 			if (err.response?.status === 401) {
@@ -345,7 +346,7 @@ export const useAuthStore = defineStore('auth', () => {
 			const response = await api.get('/tokens')
 			return response.data.success ? response.data.data : []
 		} catch (err) {
-			console.error('Error al obtener tokens:', err)
+			logger.warn('Error al obtener tokens')
 			return []
 		}
 	}

@@ -54,6 +54,7 @@
 import { onMounted, ref, nextTick } from 'vue'
 import Hero from '@/components/Hero.vue'
 import axios from '@/axios'
+import logger from '@/utils/logger'
 
 // Estado reactivo
 const clients = ref([])      // Lista de clientes
@@ -97,7 +98,7 @@ const fetchClients = async () => {
       error.value = 'No fue posible cargar los clientes.'
     }
   } catch (err) {
-    console.error(err)
+    logger.error('Error al cargar clientes públicos', err)
     error.value = 'Error al cargar los clientes.'
   } finally {
     loading.value = false

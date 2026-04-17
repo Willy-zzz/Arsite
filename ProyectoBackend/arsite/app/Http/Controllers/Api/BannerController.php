@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Banner;
-use App\Exports\BannersExport;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Carbon\CarbonImmutable;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Traits\Exportable;
 
 class BannerController extends BaseApiController
@@ -26,7 +22,9 @@ class BannerController extends BaseApiController
     public function __construct()
     {
         //Autoriza automáticamente con policies
-        $this->authorizeResource(Banner::class, 'banner');
+        $this->authorizeResource(Banner::class, 'banner', [
+            'except' => ['publicBanners'],
+        ]);
     }
 
     /**
@@ -54,7 +52,9 @@ class BannerController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error index banner: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al listar banners', $request, [
+                'event' => 'banners.index.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -85,7 +85,9 @@ class BannerController extends BaseApiController
 
             // Subir imagen si existe
             if ($request->hasFile('ban_imagen')) {
-                $newImage = $this->uploadImage($request->file('ban_imagen'));
+                $newImage = $this->uploadImage($request, $request->file('ban_imagen'), [
+                    'action' => 'create',
+                ]);
                 $data['ban_imagen'] = $newImage;
             }
 
@@ -98,6 +100,13 @@ class BannerController extends BaseApiController
             //Confirmar transacción
             DB::commit();
 
+            ApiAuditLogger::info('Banner creado', $request, [
+                'event' => 'banners.create',
+                'record_id' => $banner->ban_id,
+                'banner_title' => $banner->ban_titulo,
+                'file_path' => $banner->ban_imagen,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $banner,
@@ -109,9 +118,17 @@ class BannerController extends BaseApiController
             DB::rollBack();
             
             // Limpiar imagen subida si hubo error para no llenar el servidor de archivos huerfanos
-            if ($newImage) $this->deleteImage($newImage);
-            
-            Log::error('Error store banner: ' . $e->getMessage());
+            if ($newImage) {
+                $this->deleteImage($request, $newImage, [
+                    'action' => 'rollback_after_create_error',
+                ]);
+            }
+
+            ApiAuditLogger::error('Error al crear banner', $request, [
+                'event' => 'banners.create.error',
+                'banner_title' => $request->input('ban_titulo'),
+                'file_path' => $newImage,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -158,7 +175,10 @@ class BannerController extends BaseApiController
 
             // Subir nueva imagen si existe
             if ($request->hasFile('ban_imagen')) {
-                $newImage = $this->uploadImage($request->file('ban_imagen'));
+                $newImage = $this->uploadImage($request, $request->file('ban_imagen'), [
+                    'action' => 'update',
+                    'record_id' => $banner->ban_id,
+                ]);
                 $data['ban_imagen'] = $newImage;
             }
 
@@ -170,7 +190,19 @@ class BannerController extends BaseApiController
             DB::commit();
 
             // Ahora es seguro borrar la imagen anterior del disco
-            if ($newImage && $oldImage) $this->deleteImage($oldImage);
+            if ($newImage && $oldImage) {
+                $this->deleteImage($request, $oldImage, [
+                    'action' => 'replace_after_update',
+                    'record_id' => $banner->ban_id,
+                ]);
+            }
+
+            ApiAuditLogger::info('Banner actualizado', $request, [
+                'event' => 'banners.update',
+                'record_id' => $banner->ban_id,
+                'banner_title' => $banner->ban_titulo,
+                'file_path' => $banner->ban_imagen,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -183,9 +215,19 @@ class BannerController extends BaseApiController
             
             // Si falló el proceso, borramos la imagen NUEVA que acabamos de subir.
             // La vieja no se toca.
-            if ($newImage) $this->deleteImage($newImage);
-            
-            Log::error('Error update banner: ' . $e->getMessage());
+            if ($newImage) {
+                $this->deleteImage($request, $newImage, [
+                    'action' => 'rollback_after_update_error',
+                    'record_id' => $banner->ban_id,
+                ]);
+            }
+
+            ApiAuditLogger::error('Error al actualizar banner', $request, [
+                'event' => 'banners.update.error',
+                'record_id' => $banner->ban_id,
+                'banner_title' => $request->input('ban_titulo', $banner->ban_titulo),
+                'file_path' => $newImage,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -199,15 +241,29 @@ class BannerController extends BaseApiController
         try {
             // Lock del registro. Bloqueamos para asegurar exclusividad en el borrado
             $banner = Banner::where('ban_id', $banner->ban_id)->lockForUpdate()->first();
+            $recordId = $banner->ban_id;
+            $bannerTitle = $banner->ban_titulo;
             $oldImage = $banner->ban_imagen;
 
             // Eliminar de BD
             $banner->delete();
             
             // Eliminar archivo físico
-            if ($oldImage) $this->deleteImage($oldImage);
+            if ($oldImage) {
+                $this->deleteImage($request, $oldImage, [
+                    'action' => 'delete',
+                    'record_id' => $recordId,
+                ]);
+            }
 
             DB::commit();
+
+            ApiAuditLogger::info('Banner eliminado', $request, [
+                'event' => 'banners.delete',
+                'record_id' => $recordId,
+                'banner_title' => $bannerTitle,
+                'file_path' => $oldImage,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -216,7 +272,11 @@ class BannerController extends BaseApiController
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error destroy banner: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al eliminar banner', $request, [
+                'event' => 'banners.delete.error',
+                'record_id' => $banner->ban_id,
+                'banner_title' => $banner->ban_titulo,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -254,7 +314,9 @@ class BannerController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error publicBanners: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al obtener banners públicos', $request, [
+                'event' => 'banners.public.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -297,7 +359,9 @@ class BannerController extends BaseApiController
             ]);
         
         } catch (\Exception $e) {
-            Log::error('Error updateOrder banner: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al actualizar orden de banners', $request, [
+                'event' => 'banners.reorder.error',
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     }
@@ -329,9 +393,19 @@ class BannerController extends BaseApiController
             Banner::whereIn('ban_id', $request->ids)->delete();
 
             // Eliminar archivos físicos
-            foreach ($imagePaths as $path) $this->deleteImage($path);
+            foreach ($imagePaths as $path) {
+                $this->deleteImage($request, $path, [
+                    'action' => 'bulk_delete',
+                ]);
+            }
 
             DB::commit();
+
+            ApiAuditLogger::info('Banners eliminados en lote', $request, [
+                'event' => 'banners.bulk_delete',
+                'record_ids' => $request->ids,
+                'deleted_count' => count($request->ids),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -341,7 +415,10 @@ class BannerController extends BaseApiController
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error bulkDelete banner: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al eliminar banners en lote', $request, [
+                'event' => 'banners.bulk_delete.error',
+                'record_ids' => $request->ids,
+            ], $e);
             return response()->json(['success' => false, 'message' => 'Error interno'], 500);
         }
     } 
@@ -499,16 +576,76 @@ class BannerController extends BaseApiController
     //     return $file->storeAs('banners', $filename, 'public');
     // }
 
-    private function uploadImage($file): string
+    private function uploadImage(Request $request, $file, array $context = []): string
     {
-        $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        return $file->storeAs('banners', $filename, 'public');
+        try {
+            $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('banners', $filename, 'public');
+
+            ApiAuditLogger::info('Archivo de banner subido', $request, ApiAuditLogger::storageContext(
+                'public',
+                $path,
+                $file,
+                array_merge([
+                    'event' => 'banners.file.uploaded',
+                    'module' => 'banners',
+                ], $context)
+            ));
+
+            return $path;
+        } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al subir archivo de banner', $request, ApiAuditLogger::storageContext(
+                'public',
+                null,
+                $file,
+                array_merge([
+                    'event' => 'banners.file.upload_error',
+                    'module' => 'banners',
+                ], $context)
+            ), $e);
+
+            throw $e;
+        }
     }
 
-    private function deleteImage(?string $path): void
+    private function deleteImage(Request $request, ?string $path, array $context = []): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
+        try {
+            if (!$path) {
+                return;
+            }
+
+            if (!Storage::disk('public')->exists($path)) {
+                ApiAuditLogger::warning('Archivo de banner no encontrado en storage', $request, array_merge([
+                    'event' => 'banners.file.missing',
+                    'module' => 'banners',
+                    'disk' => 'public',
+                    'file_path' => $path,
+                    'file_name' => basename($path),
+                ], $context));
+
+                return;
+            }
+
             Storage::disk('public')->delete($path);
+
+            ApiAuditLogger::info('Archivo de banner eliminado', $request, array_merge([
+                'event' => 'banners.file.deleted',
+                'module' => 'banners',
+                'disk' => 'public',
+                'file_path' => $path,
+                'file_name' => basename($path),
+            ], $context));
+        } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al eliminar archivo de banner', $request, array_merge([
+                'event' => 'banners.file.delete_error',
+                'module' => 'banners',
+                'disk' => 'public',
+                'file_path' => $path,
+                'file_name' => $path ? basename($path) : null,
+            ], $context), $e);
+
+            throw $e;
         }
     }
 

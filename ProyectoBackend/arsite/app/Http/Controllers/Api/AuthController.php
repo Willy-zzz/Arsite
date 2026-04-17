@@ -4,13 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -67,11 +65,10 @@ class AuthController extends Controller
             $abilities = $this->getAbilitiesByRole($user->usu_rol);
             $token = $user->createToken('auth-token', $abilities)->plainTextToken;
 
-            Log::info('Nuevo usuario registrado', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'rol' => $user->usu_rol,
-                'ip' => $request->ip()
+            ApiAuditLogger::info('Nuevo usuario registrado', $request, [
+                'event' => 'auth.register',
+                'record_id' => $user->id,
+                'registered_role' => $user->usu_rol,
             ]);
 
             return response()->json([
@@ -93,9 +90,9 @@ class AuthController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            Log::error('Error al registrar usuario: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            ApiAuditLogger::error('Error al registrar usuario', $request, [
+                'event' => 'auth.register.error',
+            ], $e);
             
             return response()->json([
                 'success' => false,
@@ -130,6 +127,12 @@ class AuthController extends Controller
 
             //Verificar si el usuario existe
             if (!$user) {
+                ApiAuditLogger::warning('Intento fallido de inicio de sesión', $request, [
+                    'event' => 'auth.login.failed',
+                    'reason' => 'user_not_found',
+                    'auth_identifier' => $request->email,
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Las credenciales proporcionadas son incorrectas'
@@ -138,6 +141,13 @@ class AuthController extends Controller
 
             //Verificar la contraseña
             if (!Hash::check($request->password, $user->password)) {
+                ApiAuditLogger::warning('Intento fallido de inicio de sesión', $request, [
+                    'event' => 'auth.login.failed',
+                    'reason' => 'invalid_password',
+                    'record_id' => $user->id,
+                    'auth_identifier' => $request->email,
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Las credenciales proporcionadas son incorrectas'
@@ -150,6 +160,12 @@ class AuthController extends Controller
                     'Pendiente' => 'Tu cuenta está pendiente de activación.',
                     'Inactivo' => 'Tu cuenta ha sido desactivada. Contacta al administrador.'
                 ];
+
+                ApiAuditLogger::warning('Intento de acceso con cuenta no disponible', $request, [
+                    'event' => 'auth.login.blocked',
+                    'record_id' => $user->id,
+                    'account_status' => $user->usu_estado,
+                ]);
 
                 return response()->json([
                     'success' => false,
@@ -166,10 +182,9 @@ class AuthController extends Controller
             $user->makeHidden(['password', 'remember_token']);
 
             //Registrar login exitoso
-            Log::info('Uusario inició sesión', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'ip' => $request->ip()
+            ApiAuditLogger::info('Usuario inició sesión', $request, [
+                'event' => 'auth.login.success',
+                'record_id' => $user->id,
             ]);
 
             return response()->json([
@@ -192,10 +207,10 @@ class AuthController extends Controller
                     ]
                 ],200);
         } catch (\Exception $e) {
-            Log::error('Error en login: ' . $e->getMessage(), [
-                'email' => $request->email,
-                'trace' => $e->getTraceAsString()
-            ]);
+            ApiAuditLogger::error('Error en login', $request, [
+                'event' => 'auth.login.error',
+                'auth_identifier' => $request->email,
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -243,9 +258,9 @@ class AuthController extends Controller
             //Revocar el token actual
             $request->user()->currentAccessToken()->delete();
 
-            Log::info('Usuario cerró sesión', [
-                'user_id' => $request->user()->id,
-                'email' => $request->user()->email
+            ApiAuditLogger::info('Usuario cerró sesión', $request, [
+                'event' => 'auth.logout',
+                'record_id' => $request->user()->id,
             ]);
 
             return response()->json([
@@ -253,7 +268,9 @@ class AuthController extends Controller
                 'message' => 'Sesión cerrada exitosamente'
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Error al cerrar sesión: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al cerrar sesión', $request, [
+                'event' => 'auth.logout.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -272,9 +289,10 @@ class AuthController extends Controller
             $tokensCount = $request->user()->tokens()->count();
             $request->user()->tokens()->delete();
 
-            Log::info('Usuario cerró sesión en todos los dispositivos', [
-                'user_id' => $request->user()->id,
-                'tokens_revoked' => $tokensCount
+            ApiAuditLogger::info('Usuario cerró sesión en todos los dispositivos', $request, [
+                'event' => 'auth.logout_all',
+                'record_id' => $request->user()->id,
+                'tokens_revoked' => $tokensCount,
             ]);
 
             return response()->json([
@@ -286,7 +304,9 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al cerrar todas las sesiones: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al cerrar todas las sesiones', $request, [
+                'event' => 'auth.logout_all.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -333,7 +353,9 @@ class AuthController extends Controller
                 'message' => 'Usuario autenticado obtenido exitosamente'
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Error al obtener usuario: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al obtener usuario autenticado', $request, [
+                'event' => 'auth.me.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -379,8 +401,9 @@ class AuthController extends Controller
             $user->update($validator->validated());
             $user->makeHidden(['password', 'remember_token']);
 
-            Log::info('Usuario actualizó su perfil', [
-                'user_id' => $user->id
+            ApiAuditLogger::info('Usuario actualizó su perfil', $request, [
+                'event' => 'auth.profile.updated',
+                'record_id' => $user->id,
             ]);
 
             return response()->json([
@@ -390,7 +413,9 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar perfil: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al actualizar perfil', $request, [
+                'event' => 'auth.profile.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -442,8 +467,9 @@ class AuthController extends Controller
             $currentTokenId = $request->user()->currentAccessToken()->id;
             $user->tokens()->where('id', '!=', $currentTokenId)->delete();
 
-            Log::info('Usuario cambió su contraseña', [
-                'user_id' => $user->id
+            ApiAuditLogger::info('Usuario cambió su contraseña', $request, [
+                'event' => 'auth.password.changed',
+                'record_id' => $user->id,
             ]);
 
             return response()->json([
@@ -452,7 +478,9 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al cambiar contraseña: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al cambiar contraseña', $request, [
+                'event' => 'auth.password.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -494,7 +522,9 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al refrescar datos: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al refrescar datos', $request, [
+                'event' => 'auth.refresh.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -529,10 +559,10 @@ class AuthController extends Controller
 
             // TODO: Implementar envío de email con token de restablecimiento
             // Por ahora solo registramos la solicitud
-            Log::info('Solicitud de restablecimiento de contraseña', [
-                'email' => $request->email,
-                'user_id' => $user->id,
-                'ip' => $request->ip()
+            ApiAuditLogger::info('Solicitud de restablecimiento de contraseña', $request, [
+                'event' => 'auth.password_reset.requested',
+                'record_id' => $user->id,
+                'auth_identifier' => $request->email,
             ]);
 
             return response()->json([
@@ -541,7 +571,10 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error en forgot password: ' . $e->getMessage());
+            ApiAuditLogger::error('Error en forgot password', $request, [
+                'event' => 'auth.password_reset.error',
+                'auth_identifier' => $request->email,
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -583,8 +616,9 @@ class AuthController extends Controller
         if ($tipo === 'initials'){
             $user->updateAvatar(null, 'initials');
             
-            Log::info('Usuario cambió avatar a iniciales', [
-                'user_id' => $user->id
+            ApiAuditLogger::info('Usuario cambió avatar a iniciales', $request, [
+                'event' => 'auth.avatar.reset_to_initials',
+                'record_id' => $user->id,
             ]);
 
             return response()->json([
@@ -607,8 +641,9 @@ class AuthController extends Controller
 
             $user->updateAvatar($request->file('avatar'), 'upload');
             
-            Log::info('Usuario subió avatar personalizado', [
-                'user_id' => $user->id
+            ApiAuditLogger::info('Usuario subió avatar personalizado', $request, [
+                'event' => 'auth.avatar.uploaded',
+                'record_id' => $user->id,
             ]);
 
             return response()->json([
@@ -631,9 +666,10 @@ class AuthController extends Controller
 
             $user->updateAvatar($request->avatar_preset, 'preset');
 
-            Log::info('Usuario seleccionó avatar preset', [
-                'user_id' => $user->id,
-                'preset' => $request->avatar_preset
+            ApiAuditLogger::info('Usuario seleccionó avatar preset', $request, [
+                'event' => 'auth.avatar.preset_selected',
+                'record_id' => $user->id,
+                'preset' => $request->avatar_preset,
             ]);
 
             return response()->json([
@@ -645,7 +681,9 @@ class AuthController extends Controller
             ]);
         }
     } catch (\Exception $e) {
-        Log::error('Error al actualizar avatar: ' . $e->getMessage());
+        ApiAuditLogger::error('Error al actualizar avatar', $request, [
+            'event' => 'auth.avatar.error',
+        ], $e);
 
         return response()->json([
             'success' => false,
@@ -674,7 +712,9 @@ class AuthController extends Controller
         ]);
 
     } catch (\Exception $e) {
-        Log::error('Error al obtener presets: ' . $e->getMessage());
+        ApiAuditLogger::error('Error al obtener presets', $request, [
+            'event' => 'auth.avatar_presets.error',
+        ], $e);
 
         return response()->json([
             'success' => false,
@@ -700,8 +740,9 @@ class AuthController extends Controller
             
             $user->updateAvatar(null, 'initials');
 
-            Log::info('Usuario eliminó su avatar personalizado', [
-            'user_id' => $user->id
+            ApiAuditLogger::info('Usuario eliminó su avatar personalizado', $request, [
+            'event' => 'auth.avatar.deleted',
+            'record_id' => $user->id,
         ]);
         
         return response()->json([
@@ -713,7 +754,9 @@ class AuthController extends Controller
         ]);
     
     } catch (\Exception $e) {
-        Log::error('Error al eliminar avatar: ' . $e->getMessage());
+        ApiAuditLogger::error('Error al eliminar avatar', $request, [
+            'event' => 'auth.avatar.delete_error',
+        ], $e);
 
         return response()->json([
             'success' => false,
@@ -748,7 +791,9 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener tokens: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al obtener tokens', $request, [
+                'event' => 'auth.tokens.error',
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -782,9 +827,10 @@ class AuthController extends Controller
 
             $token->delete();
 
-            Log::info('Token revocado', [
-                'user_id' => $request->user()->id,
-                'token_id' => $tokenId
+            ApiAuditLogger::info('Token revocado', $request, [
+                'event' => 'auth.token.revoked',
+                'record_id' => $request->user()->id,
+                'token_id' => $tokenId,
             ]);
 
             return response()->json([
@@ -793,7 +839,10 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al revocar token: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al revocar token', $request, [
+                'event' => 'auth.token.revoke_error',
+                'token_id' => $tokenId,
+            ], $e);
 
             return response()->json([
                 'success' => false,

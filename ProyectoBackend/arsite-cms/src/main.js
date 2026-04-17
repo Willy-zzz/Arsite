@@ -5,9 +5,12 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import { silenceBrowserConsole } from './utils/logger'
 
 import './assets/main.css'
 import './index.css'
+
+silenceBrowserConsole()
 
 const app = createApp(App)
 

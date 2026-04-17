@@ -46,6 +46,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import axios from '@/axios'
+import logger from '@/utils/logger'
 
 const slides = ref([])
 const current = ref(0)
@@ -80,7 +81,7 @@ const fetchSlides = async () => {
     }
     loading.value = false
   } catch (err) {
-    console.error('Error fetching banners:', err)
+    logger.error('Error al cargar banners públicos', err)
     error.value = err.message
     loading.value = false
   }

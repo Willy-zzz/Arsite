@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getInactivityConfig, isInactivityMonitoringEnabled } from '@/config/security.config'
+import logger from '@/utils/logger'
 
 /**
  * Composable para cerrar sesión automáticamente por inactividad
@@ -58,7 +59,7 @@ export function useInactivityLogout() {
 	 * Ejecuta el logout automático
 	 */
 	const executeLogout = async () => {
-		console.warn(' Cerrando sesión por inactividad...')
+		logger.warn('Cerrando sesión por inactividad...')
 
 		// Limpiar timers
 		clearAllTimers()
@@ -108,7 +109,7 @@ export function useInactivityLogout() {
 			showWarning.value = true
 			startCountdown()
 
-			console.warn(
+			logger.warn(
 				`⚠️ Advertencia: sesión se cerrará en ${config.warningMinutes} minutos por inactividad`,
 			)
 		}, WARNING_THRESHOLD_MS)
@@ -121,7 +122,7 @@ export function useInactivityLogout() {
 	 * Cancela el logout y resetea el timer
 	 */
 	const cancelLogout = () => {
-		console.log(' Sesión extendida por actividad del usuario')
+		logger.info('Sesión extendida por actividad del usuario')
 		showWarning.value = false
 		resetTimer()
 	}
@@ -153,7 +154,7 @@ export function useInactivityLogout() {
 		clearAllTimers()
 		showWarning.value = false
 		removeEventListeners()
-		console.log(' Monitoreo de inactividad detenido')
+		logger.debug('Monitoreo de inactividad detenido')
 	}
 
 	// ================== EVENT LISTENERS ==================
@@ -176,14 +177,14 @@ export function useInactivityLogout() {
 
 	onMounted(() => {
 		if (shouldMonitor()) {
-			console.log(
+			logger.debug(
 				`Monitoreando inactividad: ${config.timeoutMinutes} min ` +
 					`(advertencia a los ${config.timeoutMinutes - config.warningMinutes} min)`,
 			)
 			addEventListeners()
 			resetTimer()
 		} else {
-			console.log('Monitoreo de inactividad no aplica (remember=true o deshabilitado')
+			logger.debug('Monitoreo de inactividad no aplica (remember=true o deshabilitado)')
 		}
 	})
 

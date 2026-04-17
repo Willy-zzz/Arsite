@@ -257,6 +257,7 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Hero from '@/components/Hero.vue'
 import { useAuth } from '@/composables/useAuth'
+import logger from '@/utils/logger'
 
 const router = useRouter()
 const { user, isLoggedIn } = useAuth()
@@ -353,8 +354,8 @@ const submitTicket = async () => {
     await new Promise(r => setTimeout(r, 1200))
     
     // Aquí enviarías los datos del ticket + attachedFiles a tu API
-    console.log('Ticket enviado:', ticket)
-    console.log('Archivos adjuntos:', attachedFiles.value.map(f => f.name))
+    logger.debug('Ticket enviado:', ticket)
+    logger.debug('Archivos adjuntos:', attachedFiles.value.map(f => f.name))
     
     mockTickets.value.unshift({
         id: String(parseInt(mockTickets.value[0]?.id || '0000') + 1).padStart(4, '0'),

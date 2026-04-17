@@ -1,6 +1,7 @@
 //src/services/api.js
 import axios from 'axios'
 import router from '@/router'
+import logger from '@/utils/logger'
 //import { response } from 'express'
 
 //console.log('Entorno:', import.meta.env.MODE)
@@ -42,7 +43,7 @@ api.interceptors.response.use(
 	(error) => {
 		//Error de red
 		if (!error.response) {
-			console.error('Error de red:', error.message)
+			logger.error('Error de red:', error.message)
 			return Promise.reject({
 				message: 'Error de conexión. Verifica tu internet.',
 				type: 'network',
@@ -53,7 +54,7 @@ api.interceptors.response.use(
 		switch (error.response.status) {
 			case 401:
 				//No autenticado, redirigir al login
-				console.error('No autenticado')
+				logger.warn('No autenticado')
 				localStorage.removeItem('auth-token')
 				localStorage.removeItem('auth-user')
 
@@ -67,17 +68,17 @@ api.interceptors.response.use(
 
 			case 403:
 				//No autorizado
-				console.error('No tienes permisos')
+				logger.warn('No tienes permisos')
 				break
 
 			case 404:
-				console.error('Recurso no encontrado')
+				logger.warn('Recurso no encontrado')
 				break
 
 			case 422:
 				//Errores de validación
 				const validationErrors = error.response.data.errors
-				console.error('Errores de validación:', validationErrors)
+				logger.warn('Errores de validación:', validationErrors)
 				return Promise.reject({
 					message: error.response.data.message || 'Error de validación',
 					errors: validationErrors,
@@ -85,11 +86,11 @@ api.interceptors.response.use(
 				})
 
 			case 500:
-				console.error('Error del servidor')
+				logger.error('Error del servidor')
 				break
 
 			default:
-				console.error('Error:', error.response.status)
+				logger.error('Error:', error.response.status)
 		}
 
 		return Promise.reject(error)

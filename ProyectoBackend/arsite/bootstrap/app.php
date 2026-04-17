@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\ApiAuditLogger;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Middleware\HandleCors;
@@ -38,20 +40,30 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
             \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         ]);
-        
-        $middleware->redirectGuestsTo(function ($request) {
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (AuthenticationException $e, $request) {
             if ($request->is('api/*')) {
+                ApiAuditLogger::warning('Acceso no autenticado bloqueado', $request, [
+                    'event' => 'security.unauthenticated',
+                    'guards' => $e->guards(),
+                ]);
+
                 return response()->json([
-                    'message' => 'Unauthenticated.'
+                    'success' => false,
+                    'message' => 'Unauthenticated.',
                 ], 401);
             }
         });
 
-    })
-    ->withExceptions(function (Exceptions $exceptions): void {
         //Manejar excepciones de autorización (policies)
         $exceptions->render(function (AuthorizationException $e, $request) {
             if ($request->is('api/*')) {
+                ApiAuditLogger::warning('Acceso prohibido bloqueado', $request, [
+                    'event' => 'security.forbidden',
+                    'policy_message' => $e->getMessage(),
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'No tienes permisos para realizar esta acción.',
