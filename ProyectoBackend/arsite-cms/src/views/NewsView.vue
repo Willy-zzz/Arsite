@@ -396,7 +396,7 @@ const exportToCSV = () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `noticias_${new Date().toISOString().split('T')[0]}.csv`
+		link.download = `noticias_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.csv`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -434,10 +434,17 @@ const getEmbedUrl = (url) => {
 
 const formatDate = (date) => {
 	if (!date) return 'N/A'
+
+	if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		const [year, month, day] = date.split('-')
+		return `${day}/${month}/${year}`
+	}
+
 	return new Date(date).toLocaleDateString('es-MX', {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric',
+		timeZone: 'America/Mexico_City',
 	})
 }
 
@@ -449,12 +456,17 @@ const formatDateTime = (date) => {
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
+		timeZone: 'America/Mexico_City',
 	})
 }
 
 const formatDateTimeForInput = (dateString) => {
 	if (!dateString) return ''
 	try {
+		if (typeof dateString === 'string' && dateString.includes('T')) {
+			return dateString.slice(0, 16)
+		}
+
 		const date = new Date(dateString)
 		const year = date.getFullYear()
 		const month = String(date.getMonth() + 1).padStart(2, '0')

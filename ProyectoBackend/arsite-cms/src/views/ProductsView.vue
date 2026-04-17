@@ -325,7 +325,7 @@ const exportToExcel = async () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `productos_${new Date().toISOString().split('T')[0]}.xlsx`
+		link.download = `productos_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.xlsx`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -354,7 +354,7 @@ const exportToPDF = async () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `productos_${new Date().toISOString().split('T')[0]}.pdf`
+		link.download = `productos_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.pdf`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -377,7 +377,11 @@ const exportToCSV = () => {
 			p.pro_nombre,
 			p.pro_estatus,
 			p.user?.usu_nombre || '',
-			p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : '',
+			p.created_at
+				? new Date(p.created_at).toLocaleDateString('es-MX', {
+						timeZone: 'America/Mexico_City',
+					})
+				: '',
 		])
 
 		const csvContent = [
@@ -389,7 +393,7 @@ const exportToCSV = () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `productos_${new Date().toISOString().split('T')[0]}.csv`
+		link.download = `productos_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.csv`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)

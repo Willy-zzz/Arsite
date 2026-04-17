@@ -146,6 +146,10 @@ const applyColor = (color) => {
 const formatDateForInput = (dateString) => {
 	if (!dateString) return ''
 	try {
+		if (typeof dateString === 'string' && dateString.includes('T')) {
+			return dateString.slice(0, 16)
+		}
+
 		const d = new Date(dateString)
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 	} catch {
@@ -1454,13 +1458,14 @@ const handleSubmit = async () => {
 								</span>
 								<span v-if="form.not_publicacion" class="text-xs text-gray-400">
 									{{
-										new Date(form.not_publicacion).toLocaleString('es-MX', {
-											year: 'numeric',
-											month: 'long',
-											day: 'numeric',
-											hour: '2-digit',
-											minute: '2-digit',
-										})
+									new Date(form.not_publicacion).toLocaleString('es-MX', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric',
+										hour: '2-digit',
+										minute: '2-digit',
+										timeZone: 'America/Mexico_City',
+									})
 									}}
 								</span>
 							</div>

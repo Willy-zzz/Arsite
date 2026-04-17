@@ -348,7 +348,7 @@ const exportToCSV = async () => {
 			const url = window.URL.createObjectURL(blob)
 			const link = document.createElement('a')
 			link.href = url
-			link.download = `contactos_${new Date().toISOString().split('T')[0]}.csv`
+		link.download = `contactos_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.csv`
 			document.body.appendChild(link)
 			link.click()
 			document.body.removeChild(link)
@@ -383,10 +383,17 @@ const isNuevo = (contacto) => contacto.con_estado === 'Nuevo'
 
 const formatDate = (date) => {
 	if (!date) return 'N/A'
+
+	if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		const [year, month, day] = date.split('-')
+		return `${day}/${month}/${year}`
+	}
+
 	return new Date(date).toLocaleDateString('es-MX', {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric',
+		timeZone: 'America/Mexico_City',
 	})
 }
 
@@ -398,6 +405,7 @@ const formatDateTime = (date) => {
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
+		timeZone: 'America/Mexico_City',
 	})
 }
 

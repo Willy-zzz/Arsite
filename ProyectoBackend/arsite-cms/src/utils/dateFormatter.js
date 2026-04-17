@@ -1,5 +1,7 @@
 // src/utils/dateFormatter.js
 
+const APP_TIME_ZONE = 'America/Mexico_City'
+
 export const formatDate = (dateString) => {
 	if (!dateString) return 'N/A'
 
@@ -32,6 +34,7 @@ export const formatDate = (dateString) => {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric',
+		timeZone: APP_TIME_ZONE,
 	})
 }
 
@@ -45,6 +48,7 @@ export const formatDateTime = (dateString) => {
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
+		timeZone: APP_TIME_ZONE,
 	})
 }
 

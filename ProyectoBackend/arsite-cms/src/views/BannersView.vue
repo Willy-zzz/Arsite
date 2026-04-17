@@ -395,7 +395,7 @@ const exportToExcel = async () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `banners_${new Date().toISOString().split('T')[0]}.xlsx`
+		link.download = `banners_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.xlsx`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -424,7 +424,7 @@ const exportToPDF = async () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `banners_${new Date().toISOString().split('T')[0]}.pdf`
+		link.download = `banners_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.pdf`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -473,7 +473,7 @@ const exportToCSV = () => {
 		const url = window.URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `banners_${new Date().toISOString().split('T')[0]}.csv`
+		link.download = `banners_${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' })}.csv`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
@@ -570,7 +570,15 @@ const getImageUrl = (path) => {
 
 const formatDate = (date) => {
 	if (!date) return 'N/A'
-	return new Date(date).toLocaleDateString('es-MX')
+
+	if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		const [year, month, day] = date.split('-')
+		return `${day}/${month}/${year}`
+	}
+
+	return new Date(date).toLocaleDateString('es-MX', {
+		timeZone: 'America/Mexico_City',
+	})
 }
 
 const formatDateForInput = (dateString) => {
