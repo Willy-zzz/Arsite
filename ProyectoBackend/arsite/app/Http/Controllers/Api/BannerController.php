@@ -502,9 +502,7 @@ class BannerController extends BaseApiController
     private function uploadImage($file): string
     {
         $filename = date('YmdHis') . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        // Guardar directamente en la carpeta public/storage/banners
-        $file->move(public_path('storage/banners'), $filename);
-        return 'banners/' . $filename; // Devuelve 'banners/archivo.jpg'
+        return $file->storeAs('banners', $filename, 'public');
     }
 
     private function deleteImage(?string $path): void

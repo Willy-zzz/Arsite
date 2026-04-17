@@ -27,7 +27,9 @@ class ClienteController extends BaseApiController
     public function __construct()
     {
         //Autoriza automáticamente con policies
-        $this->authorizeResource(Cliente::class, 'cliente');
+        $this->authorizeResource(Cliente::class, 'cliente', [
+            'except' => ['publicClientes'],
+        ]);
     }
 
     /**

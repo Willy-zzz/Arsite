@@ -131,7 +131,6 @@ Route::middleware('auth:sanctum')->group(function () {
     //Cliente CRUD
     Route::put('/clientes/update-order', [ClienteController::class, 'updateOrder']);
     Route::get('/clientes/export', [ClienteController::class, 'export']);
-    Route::get('/clientes/public', [ClienteController::class, 'publicClientes']); // Sin auth
     Route::get('/clientes/statistics', [ClienteController::class, 'statistics']);
     Route::put('/clientes/bulk-update-status', [ClienteController::class, 'bulkUpdateStatus']);
     Route::post('/clientes/bulk-delete', [ClienteController::class, 'bulkDelete']);
@@ -166,4 +165,3 @@ Route::middleware('auth:sanctum')->group(function () {
 //Route::get('/user', function (Request $request) {
 //    return $request->user();
 //})->middleware('auth:sanctum');
-
