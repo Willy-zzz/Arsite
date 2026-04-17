@@ -14,7 +14,7 @@
 				<div class="flex gap-3">
 					<!-- Botón de estadísticas -->
 					<button
-						@click="showStats = !showStats"
+						@click="toggleStats"
 						class="px-4 py-2.5 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl shadow-sm hover:shadow-md hover:border-indigo-400 transition-all duration-200 flex items-center gap-2"
 					>
 						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1878,6 +1878,14 @@ const fetchStatistics = async () => {
 		console.error('Error al cargar estadísticas:', err)
 	} finally {
 		loadingStats.value = false
+	}
+}
+
+const toggleStats = async () => {
+	showStats.value = !showStats.value
+
+	if (showStats.value) {
+		await fetchStatistics()
 	}
 }
 

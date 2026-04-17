@@ -1,0 +1,13 @@
+cd ProyectoBackend/arsite
+php artisan serve --port=8000
+-----------------------------
+
+cd ProyectoBackend/arsite-cms
+npm run dev
+-----------------------------
+
+cd ProyectoFront/web-publica
+php artisan serve --port=8001
+npm run dev
+-----------------------------
+
