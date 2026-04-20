@@ -22,12 +22,12 @@ const routes = [
 				component: () => import('@/views/Login.vue'),
 				meta: { requiresAuth: false },
 			},
-			{
-				path: '/register',
-				name: 'Register',
-				component: () => import('@/views/Register.vue'),
-				meta: { requiresAuth: false, layout: 'auth' },
-			},
+			// {
+			// 	path: '/register',
+			// 	name: 'Register',
+			// 	component: () => import('@/views/Register.vue'),
+			// 	meta: { requiresAuth: false, layout: 'auth' },
+			// },
 		],
 	},
 
@@ -205,7 +205,7 @@ router.beforeEach(async (to, from, next) => {
 	}
 
 	//Redirigir usuarios autenticados que intenten ir al login
-	if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
+	if (to.path === '/login' && authStore.isAuthenticated) {
 		//console.log('Ya autenticado, redirigir a dashboard')
 
 		if (authStore.userStatus === 'Pendiente') {
