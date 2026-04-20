@@ -1,4 +1,13 @@
+# ========================
+# ENV (CRÍTICO)
+# ========================
+.env
+.env.*
+!.env.example
+
+# ========================
 # Logs
+# ========================
 logs
 *.log
 npm-debug.log*
@@ -7,23 +16,60 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ========================
+# Dependencias
+# ========================
 node_modules
-.DS_Store
+/vendor
+
+# ========================
+# Build / Frontend
+# ========================
 dist
 dist-ssr
 coverage
+/public/build
+/public/hot
+.vite
+
+# ========================
+# Laravel storage / cache
+# ========================
+/storage/*.key
+/storage/logs
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*
+
+# Mantener estructura
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore
+!/bootstrap/cache/.gitignore
+
+# ========================
+# Sistema
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# Local config
+# ========================
 *.local
+.cache
+.tmp
 
-.env
-.env.backup
-.env.production
-.env.development
-.env.test
-
+# ========================
+# Testing
+# ========================
 /cypress/videos/
 /cypress/screenshots/
 
+# ========================
 # Editor directories and files
+# ========================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -33,4 +79,7 @@ coverage
 *.sln
 *.sw?
 
+# ========================
+# TypeScript
+# ========================
 *.tsbuildinfo
