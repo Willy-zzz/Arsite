@@ -99,7 +99,7 @@
 
                     <!-- reCAPTCHA -->
                     <div class="captcha-box">
-                        <VueRecaptcha v-if="showCaptcha" sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                        <VueRecaptcha v-if="showCaptcha" sitekey="6LcL6sQsAAAAAGPgBr2vNY9zoY0AFWfL08HXOBoF"
                             @verify="onCaptchaVerified" @expire="onCaptchaExpired" size="normal" theme="light" />
                         <p v-if="!showCaptcha" class="captcha-loading">Cargando CAPTCHA...</p>
                     </div>

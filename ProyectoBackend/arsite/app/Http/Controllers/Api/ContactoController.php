@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Contacto;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 
 class ContactoController extends BaseApiController
 {
@@ -76,7 +76,9 @@ class ContactoController extends BaseApiController
         ]);
 
     } catch (\Exception $e) {
-        Log::error('Error index contacto: ' . $e->getMessage());
+        ApiAuditLogger::error('Error al listar contactos', $request, [
+            'event' => 'contactos.index.error',
+        ], $e);
         return response()->json(['success' => false, 'message' => 'Error interno'], 500);
     }
 }
@@ -86,6 +88,8 @@ class ContactoController extends BaseApiController
      */
     public function store(Request $request): JsonResponse
     {
+        $this->validateRecaptchaIfEnabled($request);
+
         $validator = Validator::make($request->all(), [
             'con_nombre' => 'required|string|max:100',
             'con_email' => 'required|email|max:150',
@@ -104,7 +108,7 @@ class ContactoController extends BaseApiController
         }
 
         try {
-            $data = $validator->validated();
+            $data = $this->sanitizeContactData($validator->validated());
             
             // Obtener IP del usuario
             $data['con_ip'] = $request->ip();
@@ -113,7 +117,15 @@ class ContactoController extends BaseApiController
             $contacto = Contacto::create($data);
 
             // Enviar notificación por email
-            $this->enviarNotificacionContacto($contacto);
+            $this->enviarNotificacionContacto($request, $contacto);
+
+            ApiAuditLogger::info('Contacto recibido desde formulario público', $request, [
+                'event' => 'contactos.public.create',
+                'record_id' => $contacto->con_id,
+                'contact_email' => $contacto->con_email,
+                'contact_subject' => $contacto->con_asunto,
+                'contact_status' => $contacto->con_estado,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -122,12 +134,15 @@ class ContactoController extends BaseApiController
             ], 201);
 
         } catch (\Exception $e) {
-            // Log del error pero no fallar la creación del contacto
-            Log::error('Error al guardar el mensaje de contacto en BD: ' . $e->getMessage());
+            ApiAuditLogger::error('Error al guardar mensaje de contacto', $request, [
+                'event' => 'contactos.public.create.error',
+                'contact_email' => $request->input('con_email'),
+                'contact_subject' => $request->input('con_asunto'),
+            ], $e);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar el mensaje: ' . $e->getMessage()
+                'message' => 'Error al enviar el mensaje. Por favor, intenta nuevamente.'
             ], 500);
         }
     }
@@ -177,6 +192,12 @@ class ContactoController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al actualizar contacto', $request, [
+                'event' => 'contactos.update.error',
+                'record_id' => $contacto->con_id,
+                'contact_status' => $request->con_estado,
+            ], $e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar el contacto: ' . $e->getMessage()
@@ -198,6 +219,11 @@ class ContactoController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
+            ApiAuditLogger::error('Error al eliminar contacto', request(), [
+                'event' => 'contactos.delete.error',
+                'record_id' => $contacto->con_id,
+            ], $e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar el contacto: ' . $e->getMessage()
@@ -274,10 +300,11 @@ class ContactoController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error en bulkUpdateStatus: ' . $e->getMessage(), [
+            ApiAuditLogger::error('Error en actualización masiva de contactos', $request, [
+                'event' => 'contactos.bulk_status.error',
                 'ids' => $request->ids,
                 'estado' => $request->estado
-            ]);
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -322,9 +349,10 @@ class ContactoController extends BaseApiController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error en bulkDelete: ' . $e->getMessage(), [
+            ApiAuditLogger::error('Error en eliminación masiva de contactos', $request, [
+                'event' => 'contactos.bulk_delete.error',
                 'ids' => $request->ids
-            ]);
+            ], $e);
 
             return response()->json([
                 'success' => false,
@@ -450,11 +478,19 @@ class ContactoController extends BaseApiController
     /**
      * Enviar notificación de nuevo contacto por email
      */
-    private function enviarNotificacionContacto(Contacto $contacto)
+    private function enviarNotificacionContacto(Request $request, Contacto $contacto): void
     {
         try {
-            // Email del administrador (puedes configurarlo en .env)
-            $adminEmail = config('mail.admin_email', 'admin@ar-site.com');
+            $adminEmail = config('mail.admin_email');
+
+            if (!$adminEmail) {
+                ApiAuditLogger::warning('No se configuró correo administrativo para contactos', $request, [
+                    'event' => 'contactos.mail.admin_missing',
+                    'record_id' => $contacto->con_id,
+                ]);
+
+                return;
+            }
 
             // Enviar email al administrador
             Mail::send('emails.nuevo-contacto', ['contacto' => $contacto], function ($message) use ($adminEmail, $contacto) {
@@ -466,20 +502,22 @@ class ContactoController extends BaseApiController
             // Enviar email de confirmación al usuario (opcional)
             Mail::send('emails.confirmacion-contacto', ['contacto' => $contacto], function ($message) use ($contacto) {
                 $message->to($contacto->con_email, $contacto->con_nombre)
-                    ->subject('Hemos recibido tu mensaje - Ar-Site Integradores');
+                    ->subject('Hemos recibido tu mensaje - Arsite Integradores');
             });
 
-            Log::info('Emails de contacto enviados exitosamente', [
-                'contacto_id' => $contacto->con_id,
-                'email' => $contacto->con_email
+            ApiAuditLogger::info('Correos de contacto enviados', $request, [
+                'event' => 'contactos.mail.sent',
+                'record_id' => $contacto->con_id,
+                'contact_email' => $contacto->con_email,
+                'admin_email' => $adminEmail,
             ]);
 
         } catch (\Exception $e) {
-            // Registrar el error pero no lanzar excepción
-            Log::error('Error al enviar emails de contacto: ' . $e->getMessage(), [
-                'contacto_id' => $contacto->con_id,
-                'error' => $e->getMessage()
-            ]);
+            ApiAuditLogger::error('Error al enviar correos de contacto', $request, [
+                'event' => 'contactos.mail.error',
+                'record_id' => $contacto->con_id,
+                'contact_email' => $contacto->con_email,
+            ], $e);
         }
     }
 
@@ -488,10 +526,11 @@ class ContactoController extends BaseApiController
      */
     public function resendNotification(string|int $id): JsonResponse
     {
+        $contacto = Contacto::findOrFail($id);
         $this->authorize('resendNotification', $contacto);
 
         try {
-            $this->enviarNotificacionContacto($contacto);
+            $this->enviarNotificacionContacto(request(), $contacto);
 
             return response()->json([
                 'success' => true,
@@ -503,6 +542,60 @@ class ContactoController extends BaseApiController
                 'success' => false,
                 'message' => 'Error al reenviar notificación: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    private function sanitizeContactData(array $data): array
+    {
+        return [
+            'con_nombre' => trim(strip_tags($data['con_nombre'] ?? '')),
+            'con_email' => strtolower(trim($data['con_email'] ?? '')),
+            'con_telefono' => trim(strip_tags($data['con_telefono'] ?? '')),
+            'con_asunto' => trim(strip_tags($data['con_asunto'] ?? '')),
+            'con_mensaje' => trim(strip_tags($data['con_mensaje'] ?? '')),
+            'con_empresa' => trim(strip_tags($data['con_empresa'] ?? '')),
+        ];
+    }
+
+    private function validateRecaptchaIfEnabled(Request $request): void
+    {
+        $secret = env('RECAPTCHA_SECRET_KEY');
+
+        if (!$secret) {
+            return;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'captcha_token' => 'required|string',
+        ], [
+            'captcha_token.required' => 'La validación CAPTCHA es obligatoria.',
+        ]);
+
+        if ($validator->fails()) {
+            abort(response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Error de validación'
+            ], 422));
+        }
+
+        $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+            'secret' => $secret,
+            'response' => $request->input('captcha_token'),
+            'remoteip' => $request->ip(),
+        ]);
+
+        $payload = $response->json();
+
+        if (!$response->successful() || !($payload['success'] ?? false)) {
+            ApiAuditLogger::warning('CAPTCHA inválido en formulario de contacto', $request, [
+                'event' => 'contactos.captcha.invalid',
+            ]);
+
+            abort(response()->json([
+                'success' => false,
+                'message' => 'La validación CAPTCHA no fue exitosa.',
+            ], 422));
         }
     }
 }

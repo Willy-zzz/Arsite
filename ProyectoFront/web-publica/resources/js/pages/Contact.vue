@@ -78,7 +78,7 @@
             <div class="captcha-box">
               <VueRecaptcha
                 v-if="showCaptcha"
-                sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                sitekey="6LcL6sQsAAAAAGPgBr2vNY9zoY0AFWfL08HXOBoF"
                 @verify="onCaptchaVerified"
                 @expire="onCaptchaExpired"
                 size="normal"
@@ -301,7 +301,7 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
-import axios from 'axios'
+import axios from '@/axios'
 import VueRecaptcha from 'vue3-recaptcha2'
 import Hero from '@/components/Hero.vue'
 import logger from '@/utils/logger'
@@ -383,14 +383,17 @@ const handleSubmit = async () => {
   successMessage.value = ''
   
   try {
-    const formData = {
-      ...form,
-      captchaToken: captchaToken.value,
-      timestamp: new Date().toISOString(),
-      source: 'website_contact_form'
+    const payload = {
+      con_nombre: `${form.nombre} ${form.apellido}`.trim(),
+      con_email: form.email.trim(),
+      con_telefono: form.telefono.trim(),
+      con_asunto: 'Formulario web pública',
+      con_mensaje: form.mensaje.trim(),
+      con_empresa: form.compania.trim() || 'No especificada',
+      captcha_token: captchaToken.value
     }
     
-    const response = await axios.post('/api/contact', formData, {
+    const response = await axios.post('/contactos', payload, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'

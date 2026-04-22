@@ -1,119 +1,175 @@
-# =========================================
+Guía de logs
 
-# PULL REQUEST - LOGGING ARSITE
+El archivo principal sigue siendo:
+- [laravel.log](/D:/UNI_WILLYS/Dual/ProyectoCompleto/ProyectoBackend/arsite/storage/logs/laravel.log)
 
-# =========================================
+Para verlo en vivo:
+```powershell
+Get-Content D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Wait
+```
 
-Título:
-feat(logging): implementar sistema completo de auditoría en CMS y API pública
+Para ver las últimas líneas:
+```powershell
+Get-Content D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Tail 80
+```
 
----
+**Qué vas a encontrar**
 
-Resumen:
-Se implementa un sistema de logging estructurado y consistente para backend (CMS/API) y limpieza de logs en frontend.
+1. Login exitoso
+Ejemplo esperado:
+```text
+local.INFO: Usuario inició sesión {"user_id":6,"user_role":"Administrador","ip":"127.0.0.1","method":"POST","route":"login","path":"api/login","event":"auth.login.success","record_id":6}
+```
 
-Objetivo:
-Mejorar auditoría, debugging y observabilidad en producción sin exponer datos sensibles.
+2. Login fallido por correo inexistente
+```text
+local.WARNING: Intento fallido de inicio de sesión {"ip":"127.0.0.1","method":"POST","route":"login","path":"api/login","event":"auth.login.failed","reason":"user_not_found","auth_identifier":"correo@dominio.com"}
+```
 
----
+3. Login fallido por contraseña incorrecta
+```text
+local.WARNING: Intento fallido de inicio de sesión {"user_id":6,"ip":"127.0.0.1","method":"POST","route":"login","path":"api/login","event":"auth.login.failed","reason":"invalid_password","record_id":6,"auth_identifier":"correo@dominio.com"}
+```
 
-Cambios incluidos:
+4. Cuenta bloqueada o pendiente
+```text
+local.WARNING: Intento de acceso con cuenta no disponible {"user_id":8,"ip":"127.0.0.1","method":"POST","route":"login","path":"api/login","event":"auth.login.blocked","record_id":8,"account_status":"Pendiente"}
+```
 
-Backend (Laravel)
+5. Logout
+```text
+local.INFO: Usuario cerró sesión {"user_id":6,"user_role":"Administrador","ip":"127.0.0.1","method":"POST","route":"logout","path":"api/logout","event":"auth.logout","record_id":6}
+```
 
-* Helper central ApiAuditLogger
-* Middleware LogPublicApiAccess para endpoints públicos
-* Logs globales para respuestas 401 y 403
-* Logging en autenticación:
+**Clientes**
 
-  * login, logout, logout-all (info)
-  * intentos fallidos (warning)
-* Logging en CRUD:
+1. Crear cliente
+```text
+local.INFO: Cliente creado {"user_id":6,"user_role":"Administrador","ip":"127.0.0.1","method":"POST","route":"clientes","path":"api/clientes","event":"clientes.create","record_id":12,"client_name":"Cliente Demo","file_path":"clientes/20260421_abc123.png"}
+```
 
-  * clientes y banners (create, update, delete)
-* Logging en storage:
+2. Subida de logo
+```text
+local.INFO: Archivo de cliente subido {"user_id":6,"ip":"127.0.0.1","route":"clientes","event":"clientes.file.uploaded","disk":"public","file_path":"clientes/20260421_abc123.png","file_name":"20260421_abc123.png","original_name":"logo.png","file_size":24567,"mime_type":"image/png","module":"clientes","action":"create"}
+```
 
-  * upload y delete (nombre, ruta, disco, usuario)
-  * errores de filesystem (error)
-* Estandarización de contexto:
+3. Actualizar cliente
+```text
+local.INFO: Cliente actualizado {"user_id":6,"ip":"127.0.0.1","route":"clientes/{cliente}","event":"clientes.update","record_id":12,"client_name":"Cliente Demo","file_path":"clientes/20260421_xyz789.png"}
+```
 
-  * user_id, ip, route, method, status, duration, record_id
-* Sanitización:
+4. Eliminar cliente
+```text
+local.INFO: Cliente eliminado {"user_id":6,"ip":"127.0.0.1","route":"clientes/{cliente}","event":"clientes.delete","record_id":12,"client_name":"Cliente Demo","file_path":"clientes/20260421_xyz789.png"}
+```
 
-  * sin contraseñas, tokens ni traces innecesarios
+5. Error al crear/actualizar/eliminar
+```text
+local.ERROR: Error al crear cliente {"user_id":6,"ip":"127.0.0.1","route":"clientes","event":"clientes.create.error","client_name":"Cliente Demo","file_path":"clientes/....png","exception_class":"...","exception_message":"...","exception_line":123}
+```
 
-API pública
+**Banners**
 
-* Logs de consumo:
+1. Crear banner
+```text
+local.INFO: Banner creado {"user_id":6,"ip":"127.0.0.1","route":"banners","event":"banners.create","record_id":5,"banner_title":"Banner principal","file_path":"banners/20260421_def456.jpg"}
+```
 
-  * endpoint, método, IP, status, duración
+2. Subida de imagen
+```text
+local.INFO: Archivo de banner subido {"user_id":6,"ip":"127.0.0.1","route":"banners","event":"banners.file.uploaded","disk":"public","file_path":"banners/20260421_def456.jpg","file_name":"20260421_def456.jpg","original_name":"banner.jpg","file_size":188234,"mime_type":"image/jpeg","module":"banners","action":"create"}
+```
 
-Frontend (CMS + web pública)
+3. Actualizar banner
+```text
+local.INFO: Banner actualizado {"user_id":6,"ip":"127.0.0.1","route":"banners/{banner}","event":"banners.update","record_id":5,"banner_title":"Banner principal","file_path":"banners/20260421_new999.jpg"}
+```
 
-* Logger central (utils/logger.js)
-* Eliminación de console.* en producción
-* Limpieza de logs en módulos clave
+4. Eliminar banner
+```text
+local.INFO: Banner eliminado {"user_id":6,"ip":"127.0.0.1","route":"banners/{banner}","event":"banners.delete","record_id":5,"banner_title":"Banner principal","file_path":"banners/20260421_new999.jpg"}
+```
 
----
+**API pública**
 
-Cómo probar:
+1. Acceso a `/clientes/public`
+```text
+local.INFO: Consumo de API pública {"ip":"127.0.0.1","method":"GET","route":"clientes/public","path":"api/clientes/public","event":"public_api.access","status_code":200,"duration_ms":12.41,"result_count":8}
+```
 
-1. Autenticación
+2. Acceso a `/banners/public`
+```text
+local.INFO: Consumo de API pública {"ip":"127.0.0.1","method":"GET","route":"banners/public","path":"api/banners/public","event":"public_api.access","status_code":200,"duration_ms":9.13,"result_count":3}
+```
 
-* Login correcto → log info
-* Login fallido → log warning
-* Logout → log info
+**Seguridad**
 
-2. Clientes/Banners
+1. Ruta protegida sin login
+```text
+local.WARNING: Acceso no autenticado bloqueado {"ip":"127.0.0.1","method":"GET","route":"users","path":"api/users","event":"security.unauthenticated","guards":["sanctum"]}
+```
 
-* Crear, editar y eliminar → logs info con user_id y record_id
+2. Ruta sin permisos
+```text
+local.WARNING: Acceso prohibido bloqueado {"user_id":7,"user_role":"Editor","ip":"127.0.0.1","method":"DELETE","route":"users/{user}","path":"api/users/3","event":"security.forbidden","policy_message":"This action is unauthorized."}
+```
 
-3. Storage
+**Storage**
 
-* Subir archivo → log info
-* Eliminar archivo → log info
-* Forzar error → log error
+1. Archivo eliminado
+```text
+local.INFO: Archivo de cliente eliminado {"user_id":6,"ip":"127.0.0.1","event":"clientes.file.deleted","disk":"public","file_path":"clientes/archivo.png","file_name":"archivo.png","module":"clientes","action":"delete","record_id":12}
+```
 
-4. API pública
+2. Archivo faltante
+```text
+local.WARNING: Archivo de banner no encontrado en storage {"user_id":6,"ip":"127.0.0.1","event":"banners.file.missing","disk":"public","file_path":"banners/faltante.jpg","file_name":"faltante.jpg","module":"banners","action":"delete","record_id":5}
+```
 
-* GET /api/clientes/public
-* GET /api/banners/public
-  → verificar logs con IP, endpoint, status y duración
+3. Error real de filesystem
+```text
+local.ERROR: Error al eliminar archivo de banner {"user_id":6,"ip":"127.0.0.1","event":"banners.file.delete_error","disk":"public","file_path":"banners/archivo.jpg","module":"banners","exception_class":"...","exception_message":"...","exception_line":...}
+```
 
-5. Seguridad
+**Cómo leerlos rápido**
+- `INFO`: acción normal completada
+- `WARNING`: intento sospechoso o inconsistencia controlada
+- `ERROR`: fallo real que debes revisar
 
-* Acceso sin login → 401 (warning)
-* Acceso prohibido → 403 (warning)
+Campos clave:
+- `event`: el identificador más útil para filtrar
+- `user_id`: quién hizo la acción
+- `ip`: desde dónde vino
+- `route` y `path`: endpoint afectado
+- `record_id`: registro tocado
+- `file_path`: archivo afectado
+- `status_code`: resultado HTTP
+- `duration_ms`: tiempo de respuesta
 
----
+**Filtros útiles**
+Buscar solo autenticación:
+```powershell
+Select-String -Path D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Pattern "auth."
+```
 
-Impacto / riesgos:
+Buscar solo clientes:
+```powershell
+Select-String -Path D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Pattern "clientes."
+```
 
-* Incremento moderado de logs
-* No se registran datos sensibles
-* No afecta contratos de API
+Buscar solo banners:
+```powershell
+Select-String -Path D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Pattern "banners."
+```
 
----
+Buscar seguridad:
+```powershell
+Select-String -Path D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Pattern "security."
+```
 
-Checklist:
+Buscar API pública:
+```powershell
+Select-String -Path D:\UNI_WILLYS\Dual\ProyectoCompleto\ProyectoBackend\arsite\storage\logs\laravel.log -Pattern "public_api.access"
+```
 
-[x] No hay dd(), dump() ni console.log en producción
-[x] Logs estructurados y consistentes
-[x] Sin datos sensibles en logs
-[x] Middleware aplicado a endpoints públicos
-[x] Manejo global de 401 y 403
-[x] Pruebas manuales realizadas
-
----
-
-Review:
-
-* Backend: validar middleware, helper y controladores
-* Frontend: validar logger y limpieza de logs
-* Seguridad: validar protección de datos en logs
-
----
-
-FIN
-
-# =========================================
+Si quieres, el siguiente mensaje te lo dejo como “manual operativo” de 1 página: qué probar en CMS y web para forzar cada tipo de log y validar que todo quedó funcionando.

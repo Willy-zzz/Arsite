@@ -16,6 +16,24 @@
         </p>
       </section>
 
+      <section class="featured-video">
+        <div class="video-wrapper">
+          <iframe 
+            src="https://www.youtube.com/embed/iWLHZQS-v3s" 
+            frameborder="0" 
+            allowfullscreen
+            title="Ar-Site Security Day"
+          ></iframe>
+        </div>
+        <div class="video-content">
+          <h2>Ar-Site Security Day 2022</h2>
+          <p>
+            Gracias por su asistencia. Evento anual con conferencistas de marcas líderes 
+            en tecnologías de la información y seguridad.
+          </p>
+        </div>
+      </section>
+
       <!-- NUEVA SECCIÓN: Eventos y Noticias -->
       <section class="events-news">
         <h2>Eventos y Noticias</h2>
@@ -174,6 +192,35 @@ const eventsNews = [
   filter: grayscale(0);
 }
 
+/* Video destacado */
+.featured-video {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin: 60px 0;
+  background: #f0f7fa;
+  border-radius: 20px;
+  padding: 30px;
+  align-items: center;
+}
+.video-wrapper {
+  flex: 1;
+  min-width: 280px;
+}
+.video-wrapper iframe {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 12px;
+}
+.video-content {
+  flex: 1;
+}
+.video-content h2 {
+  margin-bottom: 15px;
+  color: #65B3CA;
+  font-size: 1.8rem;
+}
+
 /* ----- NUEVA SECCIÓN: EVENTOS Y NOTICIAS ----- */
 .events-news {
   margin: 60px 0;
@@ -271,6 +318,9 @@ const eventsNews = [
 @media (max-width: 600px) {
   .hero h1 {
     font-size: 2rem;
+  }
+  .featured-video {
+    flex-direction: column;
   }
   .products h2,
   .partners h2,
