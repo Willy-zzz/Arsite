@@ -1,20 +1,37 @@
 <template>
   <div class="partners-page">
-    <!-- HERO FULL WIDTH -->
     <Hero title="Partners" subtitle="Nuestros aliados estratégicos" />
 
-    <!-- CONTENIDO LIMITADO POR EL CONTENEDOR GLOBAL -->
     <section class="partners-content container">
       <h2 class="section-title">Aliados que confían en nosotros</h2>
       <p class="section-subtitle">
         Trabajamos con los líderes de la industria para ofrecerte las mejores soluciones.
       </p>
 
-      <div class="partners-grid">
-        <div v-for="partner in partners" :key="partner.id" class="partner-card" @click="openModal(partner)">
+      <div v-if="loading" class="partners-grid">
+        <div v-for="n in 8" :key="n" class="partner-card skeleton">
+          <div class="partner-logo"></div>
+        </div>
+      </div>
+
+      <div v-else-if="error" class="partners-state partners-state-error">
+        {{ error }}
+      </div>
+
+      <div v-else-if="!partners.length" class="partners-state">
+        No hay partners publicados por el momento.
+      </div>
+
+      <div v-else class="partners-grid">
+        <div
+          v-for="(partner, index) in partners"
+          :key="partner.id"
+          class="partner-card"
+          :style="{ animationDelay: `${index * 0.05}s` }"
+          @click="openModal(partner)"
+        >
           <div class="partner-logo">
-            <img :src="partner.logo" :alt="partner.name" />
-            <!-- Overlay que aparece al hover -->
+            <img :src="partner.logo" :alt="partner.name" loading="lazy" />
             <div class="partner-overlay">
               <h3>{{ partner.name }}</h3>
               <p>{{ partner.description }}</p>
@@ -24,7 +41,6 @@
       </div>
     </section>
 
-    <!-- MODAL -->
     <transition name="modal-fade">
       <div v-if="modalVisible" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
@@ -43,47 +59,73 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import Hero from '@/components/Hero.vue'
+import axios from '@/axios'
+import logger from '@/utils/logger'
 
-const partners = [
-  { id: 1, name: 'Epygi', logo: '/img/partners/epygi.png', description: 'Soluciones de telefonía IP, sistemas PBX y comunicaciones unificadas para entornos empresariales.' },
-  { id: 2, name: 'Aruba', logo: '/img/partners/aruba.png', description: 'Soluciones de redes empresariales que incluyen WiFi, switching y gestión de infraestructura de red.' },
-  { id: 3, name: 'Cisco', logo: '/img/partners/cisco.png', description: 'Tecnología líder en networking, routing, switching, colaboración y soluciones avanzadas de ciberseguridad.' },
-  { id: 4, name: 'Dell Technologies', logo: '/img/partners/dell.png', description: 'Servidores, almacenamiento y soluciones de infraestructura tecnológica para centros de datos empresariales.' },
-  { id: 5, name: 'Gdata', logo: '/img/partners/gdata.png', description: 'Soluciones de ciberseguridad, antivirus empresarial y protección avanzada para endpoints.' },
-  { id: 6, name: 'Brocade', logo: '/img/partners/brocade.jpg', description: 'Soluciones de networking y almacenamiento SAN orientadas a centros de datos de alto rendimiento.' },
-  { id: 7, name: 'Infoblox', logo: '/img/partners/infoblox.png', description: 'Plataformas para la gestión de DNS, DHCP, direcciones IP (DDI) y seguridad de infraestructura de red.' },
-  { id: 8, name: 'Force10', logo: '/img/partners/force10.jpg', description: 'Switching de alto rendimiento y soluciones de redes escalables para centros de datos.' },
-  { id: 9, name: 'Fortinet', logo: '/img/partners/fortinet.jpg', description: 'Soluciones integrales de ciberseguridad, incluyendo firewalls, protección de redes y seguridad empresarial.' },
-  { id: 10, name: 'VeeAM', logo: '/img/partners/veeam.png', description: 'Soluciones de respaldo, recuperación y protección de datos para entornos virtuales, físicos y cloud.' },
-  { id: 11, name: 'Genius Vision Digital', logo: '/img/partners/gvd.png', description: 'Software profesional para videovigilancia, monitoreo y administración de cámaras IP.' },
-  { id: 12, name: 'Rajant', logo: '/img/partners/rajant.png', description: 'Redes inalámbricas malladas (mesh) diseñadas para comunicaciones industriales y entornos de misión crítica.' },
-  { id: 13, name: 'Panduit', logo: '/img/partners/panduit.png', description: 'Infraestructura de red, cableado estructurado y soluciones para centros de datos.' },
-  { id: 14, name: 'Poly', logo: '/img/partners/poly.png', description: 'Soluciones de comunicación y colaboración empresarial con audio, video y sistemas de conferencias.' },
-  { id: 15, name: 'Radwin', logo: '/img/partners/radwin.jpg', description: 'Soluciones inalámbricas punto a punto y punto multipunto para conectividad de banda ancha.' },
-  { id: 16, name: 'Redline Communications', logo: '/img/partners/redline.png', description: 'Redes inalámbricas industriales y soluciones de comunicación para entornos críticos.' },
-  { id: 17, name: 'Riverbed', logo: '/img/partners/riverbed.png', description: 'Optimización de redes, aceleración de aplicaciones y visibilidad del rendimiento de infraestructura TI.' },
-  { id: 18, name: 'Snom The SIP Experts', logo: '/img/partners/snom.png', description: 'Teléfonos IP profesionales y soluciones de comunicación basadas en el protocolo SIP.' },
-  { id: 19, name: 'VMware', logo: '/img/partners/vmware.png', description: 'Virtualización, infraestructura cloud, redes definidas por software y plataformas para centros de datos.' },
-  { id: 20, name: 'Hewlett Packard Enterprise', logo: '/img/partners/hpe.png', description: 'Infraestructura tecnológica empresarial, incluyendo servidores, almacenamiento y soluciones híbridas.' }
-]
-
-// Modal state
+const partners = ref([])
+const loading = ref(true)
+const error = ref('')
 const modalVisible = ref(false)
 const selectedPartner = ref(null)
+
+const backendBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '')
+
+const getPartnerLogoUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${backendBaseUrl}/storage/${path}`
+}
+
+const mapPartner = (partner) => ({
+  id: partner.par_id,
+  name: partner.par_nombre,
+  logo: getPartnerLogoUrl(partner.par_logo),
+  description: partner.par_descripcion?.trim() || 'Aliado estratégico de Arsite.',
+})
+
+const fetchPartners = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await axios.get('/partners/public', {
+      params: {
+        sort_by: 'par_orden',
+        sort_direction: 'asc',
+      },
+    })
+
+    if (response.data?.success) {
+      partners.value = (response.data.data || []).map(mapPartner)
+    } else {
+      error.value = 'No fue posible cargar los partners.'
+    }
+  } catch (err) {
+    logger.error('Error al cargar partners públicos', err)
+    error.value = 'Error al cargar los partners.'
+  } finally {
+    loading.value = false
+  }
+}
 
 const openModal = (partner) => {
   selectedPartner.value = partner
   modalVisible.value = true
-  document.body.style.overflow = 'hidden' // Prevenir scroll
+  document.body.style.overflow = 'hidden'
 }
 
 const closeModal = () => {
   modalVisible.value = false
   selectedPartner.value = null
-  document.body.style.overflow = '' // Restaurar scroll
+  document.body.style.overflow = ''
 }
+
+onMounted(fetchPartners)
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+})
 </script>
 
 <style scoped>
@@ -109,6 +151,16 @@ const closeModal = () => {
   color: #4a5568;
   font-size: 1.2rem;
   margin-bottom: 3rem;
+}
+
+.partners-state {
+  text-align: center;
+  padding: 2rem;
+  color: #4a5568;
+}
+
+.partners-state-error {
+  color: #b91c1c;
 }
 
 .partners-grid {
@@ -138,6 +190,13 @@ const closeModal = () => {
   transform: translateY(-5px) scale(1.02);
 }
 
+.partner-card.skeleton {
+  cursor: default;
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
 .partner-logo {
   position: relative;
   width: 100%;
@@ -151,6 +210,17 @@ const closeModal = () => {
   border: 1px solid #eaeaea;
   overflow: hidden;
   transition: all 0.3s ease;
+}
+
+.skeleton .partner-logo {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 37%,
+    #f0f0f0 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s infinite;
 }
 
 .partner-logo img {
@@ -206,6 +276,10 @@ const closeModal = () => {
   line-height: 1.4;
   margin: 0;
   color: #f0f0f0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
 }
 
 /* Animación de entrada */
@@ -218,6 +292,16 @@ const closeModal = () => {
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
   }
 }
 

@@ -11,6 +11,7 @@ const toast = ref({ show: false, message: '', type: 'success' })
 
 const form = ref({
 	par_nombre: '',
+	par_descripcion: '',
 	par_logo: null,
 	par_orden: '',
 	par_fecha_publicacion: '',
@@ -255,6 +256,49 @@ const savePartner = async (estatus = null) => {
 									<span class="text-xs text-gray-400 tabular-nums"
 										>{{ form.par_nombre.length }}/50</span
 									>
+								</div>
+							</div>
+
+							<div class="space-y-2 mt-6">
+								<label class="block text-sm font-semibold text-gray-700">
+									Descripción
+								</label>
+								<textarea
+									v-model="form.par_descripcion"
+									rows="5"
+									maxlength="1000"
+									placeholder="Describe la alianza, especialidad o valor que este partner aporta al portafolio público."
+									class="w-full px-4 py-3 bg-gray-50 border rounded-xl text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 resize-none"
+									:class="
+										formErrors.par_descripcion
+											? 'border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200'
+											: 'border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#312AFF]/15 focus:border-[#312AFF]'
+									"
+								/>
+								<div class="flex items-center justify-between">
+									<p
+										v-if="formErrors.par_descripcion"
+										class="text-xs text-rose-500 flex items-center gap-1"
+									>
+										<svg
+											class="w-3.5 h-3.5 shrink-0"
+											fill="currentColor"
+											viewBox="0 0 20 20"
+										>
+											<path
+												fill-rule="evenodd"
+												d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+										{{ formErrors.par_descripcion[0] }}
+									</p>
+									<p v-else class="text-xs text-gray-400">
+										Visible en el overlay y modal de la web pública
+									</p>
+									<span class="text-xs text-gray-400 tabular-nums">
+										{{ form.par_descripcion.length }}/1000
+									</span>
 								</div>
 							</div>
 						</div>

@@ -22,6 +22,7 @@ class Partner extends Model
      */
     protected $fillable = [
         'par_nombre',
+        'par_descripcion',
         'par_logo',
         'par_fecha_publicacion',
         'par_fecha_terminacion',

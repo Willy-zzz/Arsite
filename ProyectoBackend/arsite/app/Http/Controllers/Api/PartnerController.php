@@ -27,7 +27,9 @@ class PartnerController extends BaseApiController
     public function __construct()
     {
         //Autoriza automáticamente con policies
-        $this->authorizeResource(Partner::class, 'partner');
+        $this->authorizeResource(Partner::class, 'partner', [
+            'except' => ['publicPartners'],
+        ]);
     }
 
     /**
@@ -515,6 +517,12 @@ class PartnerController extends BaseApiController
                 'string',
                 'max:50',
                 Rule::unique('partners', 'par_nombre')->ignore($partner?->par_id, 'par_id')
+            ],
+
+            'par_descripcion' => [
+                'nullable',
+                'string',
+                'max:1000',
             ],
 
             // Logo: requerido en create, opcional en update

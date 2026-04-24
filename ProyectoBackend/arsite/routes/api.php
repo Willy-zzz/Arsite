@@ -37,6 +37,7 @@ Route::middleware([\App\Http\Middleware\LogPublicApiAccess::class])->group(funct
 
     //Rutas públicas del cms
     Route::get('clientes/public', [ClienteController::class, 'publicClientes']);
+    Route::get('/partners/public', [PartnerController::class, 'publicPartners']);
 });
 
 
@@ -126,7 +127,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/partners/update-order', [PartnerController::class, 'updateOrder']);
     Route::get('/partners/export', [PartnerController::class, 'export']);
     Route::delete('/partners/bulk-delete', [PartnerController::class, 'bulkDelete']);
-    Route::get('/partners/public', [PartnerController::class, 'publicPartners']); // Sin auth
     Route::get('/partners/statistics', [PartnerController::class, 'statistics']);
     Route::put('/partners/bulk-status', [PartnerController::class, 'bulkUpdateStatus']);
     Route::apiResource('partners', PartnerController::class);

@@ -46,6 +46,7 @@ const filters = ref({
 // Formulario
 const form = ref({
 	par_nombre: '',
+	par_descripcion: '',
 	par_logo: null,
 	par_orden: 0,
 	par_fecha_publicacion: '',
@@ -156,6 +157,7 @@ const openModal = (mode, partner = null) => {
 	if (mode === 'edit' && partner) {
 		form.value = {
 			par_nombre: partner.par_nombre,
+			par_descripcion: partner.par_descripcion || '',
 			par_logo: null,
 			par_orden: partner.par_orden,
 			par_fecha_publicacion: formatDateForInput(partner.par_fecha_publicacion),
@@ -177,6 +179,7 @@ const closeModal = () => {
 const resetForm = () => {
 	form.value = {
 		par_nombre: '',
+		par_descripcion: '',
 		par_logo: null,
 		par_orden: 0,
 		par_fecha_publicacion: '',
@@ -1549,6 +1552,46 @@ onMounted(() => {
 									</div>
 								</div>
 
+								<div class="group">
+									<label
+										class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"
+									>
+										<svg
+											class="h-4 w-4 text-indigo-500"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M7 8h10M7 12h8m-8 4h6"
+											/>
+										</svg>
+										Descripción
+									</label>
+									<textarea
+										v-model="form.par_descripcion"
+										rows="5"
+										maxlength="1000"
+										placeholder="Describe la alianza, especialidad o valor que este partner aporta al portafolio público."
+										class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-200 outline-none text-gray-900 resize-none"
+										:class="{ 'border-red-500': formErrors.par_descripcion }"
+									/>
+									<div class="flex justify-between items-center mt-1.5">
+										<p
+											v-if="formErrors.par_descripcion"
+											class="text-red-500 text-sm"
+										>
+											{{ formErrors.par_descripcion[0] }}
+										</p>
+										<p class="text-xs text-gray-500 ml-auto">
+											{{ form.par_descripcion?.length || 0 }}/1000 caracteres
+										</p>
+									</div>
+								</div>
+
 								<!-- Estado -->
 								<div>
 									<label class="text-sm font-semibold text-gray-700 mb-2 block"
@@ -2046,6 +2089,32 @@ onMounted(() => {
 								<div class="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
 									<p class="text-gray-900 font-medium">
 										{{ selectedPartner?.par_nombre }}
+									</p>
+								</div>
+							</div>
+
+							<div>
+								<label
+									class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2"
+								>
+									<svg
+										class="h-4 w-4 text-indigo-500"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M7 8h10M7 12h8m-8 4h6"
+										/>
+									</svg>
+									Descripción
+								</label>
+								<div class="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+									<p class="text-gray-700 leading-relaxed whitespace-pre-line">
+										{{ selectedPartner?.par_descripcion || 'Sin descripción capturada.' }}
 									</p>
 								</div>
 							</div>
