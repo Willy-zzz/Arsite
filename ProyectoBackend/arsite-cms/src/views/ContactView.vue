@@ -10,6 +10,7 @@ const contactos = ref([])
 const loading = ref(false)
 const error = ref(null)
 const showDetailModal = ref(false)
+const showReplyModal = ref(false)
 const showDeleteConfirm = ref(false)
 const showBulkDeleteConfirm = ref(false)
 const showBulkStatusConfirm = ref(false)
@@ -18,6 +19,9 @@ const contactoToDelete = ref(null)
 const selectedContactos = ref([])
 const showAdvancedFilters = ref(false)
 const bulkStatusTarget = ref('')
+const replyLoading = ref(false)
+const replyForm = ref({ mensaje: '' })
+const replyErrors = ref({})
 
 // Paginación
 const pagination = ref({
@@ -122,6 +126,25 @@ const fetchContactos = async () => {
 	}
 }
 
+const loadContactoDetail = async (contactoId) => {
+	try {
+		const response = await api.get(`/contactos/${contactoId}`)
+		if (response.data.success) {
+			selectedContacto.value = response.data.data
+
+			const idx = contactos.value.findIndex((c) => c.con_id === contactoId)
+			if (idx !== -1) {
+				contactos.value[idx] = {
+					...contactos.value[idx],
+					...response.data.data,
+				}
+			}
+		}
+	} catch (err) {
+		showToast('No fue posible cargar el detalle completo del contacto', 'error')
+	}
+}
+
 // Abrir detalle y marcar como leído automáticamente
 const openDetail = async (contacto) => {
 	selectedContacto.value = contacto
@@ -139,11 +162,27 @@ const openDetail = async (contacto) => {
 			console.error('Error marcando como leído:', err)
 		}
 	}
+
+	await loadContactoDetail(contacto.con_id)
 }
 
 const closeDetail = () => {
+	closeReplyModal()
 	showDetailModal.value = false
 	selectedContacto.value = null
+}
+
+const openReplyModal = () => {
+	replyForm.value = { mensaje: '' }
+	replyErrors.value = {}
+	showReplyModal.value = true
+}
+
+const closeReplyModal = () => {
+	showReplyModal.value = false
+	replyLoading.value = false
+	replyForm.value = { mensaje: '' }
+	replyErrors.value = {}
 }
 
 // Cambiar estado individual
@@ -166,72 +205,38 @@ const changeEstado = async (contacto, nuevoEstado) => {
 	}
 }
 
-// Responder por webmail (Roundcube) — abre el compositor con datos precargados
-// Y copia los datos al portapapeles simultáneamente como respaldo
-// Marca automáticamente el mensaje como Respondido
-const responder = async (contacto) => {
-	const webmailUrl = import.meta.env.VITE_WEBMAIL_URL
+const responder = async () => {
+	if (!selectedContacto.value) return
 
-	// Construir el cuerpo del mensaje
-	const cuerpoPlano =
-		`Para: ${contacto.con_email}\n` +
-		`Asunto: Re: ${contacto.con_asunto}\n\n` +
-		`Estimado/a ${contacto.con_nombre},\n\n` +
-		`En respuesta a su mensaje recibido el ${formatDate(contacto.created_at)}, ` +
-		`nos comunicamos con usted para informarle que:\n\n` +
-		`[Escribe aquí tu respuesta]\n\n` +
-		`Quedamos a sus órdenes para cualquier consulta adicional.\n\n` +
-		`Atentamente,`
+	replyLoading.value = true
+	replyErrors.value = {}
 
-	// 1) Copiar datos al portapapeles (siempre, como respaldo)
 	try {
-		await navigator.clipboard.writeText(cuerpoPlano)
+		const response = await api.post(`/contactos/${selectedContacto.value.con_id}/reply`, {
+			mensaje: replyForm.value.mensaje,
+		})
+
+		if (response.data.success) {
+			selectedContacto.value = response.data.data.contacto
+
+			const idx = contactos.value.findIndex((c) => c.con_id === selectedContacto.value.con_id)
+			if (idx !== -1) {
+				contactos.value[idx] = {
+					...contactos.value[idx],
+					...response.data.data.contacto,
+				}
+			}
+
+			closeReplyModal()
+			showToast('Respuesta enviada y registrada exitosamente', 'success')
+		}
 	} catch (err) {
-		console.warn('No se pudo copiar al portapapeles:', err)
-	}
-
-	// 2) Abrir webmail o fallback a mailto:
-	if (webmailUrl) {
-		// Roundcube: parámetros de composición precargados
-		const to = encodeURIComponent(contacto.con_email)
-		const subject = encodeURIComponent(`Re: ${contacto.con_asunto}`)
-		const body = encodeURIComponent(
-			`Estimado/a ${contacto.con_nombre},\n\n` +
-				`En respuesta a su mensaje recibido el ${formatDate(contacto.created_at)}, ` +
-				`nos comunicamos con usted para informarle que:\n\n` +
-				`[Escribe aquí tu respuesta]\n\n` +
-				`Quedamos a sus órdenes para cualquier consulta adicional.\n\n` +
-				`Atentamente,`,
-		)
-		const url = `${webmailUrl}/?_task=mail&_action=compose&_to=${to}&_subject=${subject}&_body=${body}`
-		window.open(url, '_blank')
-	} else {
-		// Fallback a mailto: si no está configurado el webmail
-		const asunto = encodeURIComponent(`Re: ${contacto.con_asunto}`)
-		const cuerpo = encodeURIComponent(
-			`Estimado/a ${contacto.con_nombre},\n\n` +
-				`En respuesta a su mensaje recibido el ${formatDate(contacto.created_at)}, ` +
-				`nos comunicamos con usted para informarle que:\n\n` +
-				`[Escribe aquí tu respuesta]\n\n` +
-				`Quedamos a sus órdenes para cualquier consulta adicional.\n\n` +
-				`Atentamente,`,
-		)
-		window.open(`mailto:${contacto.con_email}?subject=${asunto}&body=${cuerpo}`, '_blank')
-	}
-
-	// 3) Toast informativo explicando ambas acciones
-	toast.value = {
-		show: true,
-		message: '📋 Datos copiados al portapapeles. Si Roundcube pide login, pégalos manualmente.',
-		type: 'info',
-	}
-	setTimeout(() => {
-		toast.value.show = false
-	}, 5000)
-
-	// 4) Marcar automáticamente como Respondido si no lo estaba ya
-	if (contacto.con_estado !== 'Respondido') {
-		await changeEstado(contacto, 'Respondido')
+		if (err.response?.status === 422) {
+			replyErrors.value = err.response.data.errors || {}
+		}
+		showToast(err.response?.data?.message || 'Error al enviar la respuesta', 'error')
+	} finally {
+		replyLoading.value = false
 	}
 }
 
@@ -1523,6 +1528,60 @@ onMounted(() => {
 						</div>
 					</div>
 
+					<!-- Historial de respuestas -->
+					<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+						<div
+							class="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-4 border-b border-gray-200"
+						>
+							<div class="flex items-center gap-2">
+								<svg
+									class="h-5 w-5 text-emerald-600"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4-.8L3 20l1.07-3.21A7.948 7.948 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+									/>
+								</svg>
+								<h4 class="font-semibold text-gray-900">Historial de Respuestas</h4>
+							</div>
+						</div>
+						<div class="p-6">
+							<div
+								v-if="selectedContacto.respuestas?.length"
+								class="space-y-4"
+							>
+								<div
+									v-for="respuesta in selectedContacto.respuestas"
+									:key="respuesta.cor_id"
+									class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+								>
+									<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+										<p class="text-sm font-semibold text-emerald-800">
+											{{ respuesta.user?.usu_nombre || 'Administrador' }}
+										</p>
+										<p class="text-xs text-emerald-700">
+											{{ formatDateTime(respuesta.created_at) }}
+										</p>
+									</div>
+									<p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+										{{ respuesta.cor_mensaje }}
+									</p>
+								</div>
+							</div>
+							<div
+								v-else
+								class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500 text-center"
+							>
+								Aún no se ha enviado ninguna respuesta desde el CMS.
+							</div>
+						</div>
+					</div>
+
 					<!-- Metadatos -->
 					<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
 						<div
@@ -1635,7 +1694,7 @@ onMounted(() => {
 					<div class="flex gap-3">
 						<!-- Botón responder -->
 						<button
-							@click="responder(selectedContacto)"
+							@click="openReplyModal"
 							class="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
 						>
 							<svg
@@ -1674,6 +1733,114 @@ onMounted(() => {
 							Cerrar
 						</button>
 					</div>
+				</div>
+			</div>
+		</div>
+
+		<div
+			v-if="showReplyModal && selectedContacto"
+			class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn"
+			@click.self="closeReplyModal"
+		>
+			<div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn">
+				<div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5">
+					<div class="flex items-center justify-between">
+						<div>
+							<h3 class="text-xl font-bold text-white">Responder al contacto</h3>
+							<p class="text-white/80 text-sm">
+								{{ selectedContacto.con_nombre }} · {{ selectedContacto.con_email }}
+							</p>
+						</div>
+						<button
+							@click="closeReplyModal"
+							class="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200"
+						>
+							<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+						</button>
+					</div>
+				</div>
+
+				<div class="p-6 space-y-5">
+					<div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+						<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+							Mensaje original:
+						</p>
+						<p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+							{{ selectedContacto.con_mensaje }}
+						</p>
+					</div>
+
+					<div>
+						<label class="block text-sm font-semibold text-gray-700 mb-2">
+							Respuesta para el cliente
+						</label>
+						<textarea
+							v-model="replyForm.mensaje"
+							rows="8"
+							maxlength="5000"
+							placeholder="Escribe aquí la respuesta que recibirá el cliente."
+							class="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all duration-200 outline-none text-gray-900 resize-none"
+							:class="{ 'border-red-500': replyErrors.mensaje }"
+						/>
+						<div class="flex items-center justify-between mt-2">
+							<p v-if="replyErrors.mensaje" class="text-sm text-red-500">
+								{{ replyErrors.mensaje[0] }}
+							</p>
+							<p v-else class="text-xs text-gray-500">
+								Se enviará al cliente, se notificará al admin y quedará guardada en el historial.
+							</p>
+							<span class="text-xs text-gray-400">
+								{{ replyForm.mensaje.length }}/5000
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="border-t border-gray-200 bg-gray-50 px-6 py-5 flex justify-end gap-3">
+					<button
+						@click="closeReplyModal"
+						:disabled="replyLoading"
+						class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-all duration-200"
+					>
+						Cancelar
+					</button>
+					<button
+						@click="responder"
+						:disabled="replyLoading"
+						class="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+					>
+						<svg
+							v-if="replyLoading"
+							class="w-4 h-4 animate-spin"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+						</svg>
+						<svg
+							v-else
+							class="h-4 w-4"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							/>
+						</svg>
+						{{ replyLoading ? 'Enviando...' : 'Enviar respuesta' }}
+					</button>
 				</div>
 			</div>
 		</div>

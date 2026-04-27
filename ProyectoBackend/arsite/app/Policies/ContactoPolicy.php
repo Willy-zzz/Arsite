@@ -42,6 +42,11 @@ class ContactoPolicy
         return $user->usu_rol === 'Administrador';
     }
 
+    public function reply(User $user, Contacto $contacto): bool
+    {
+        return $user->usu_rol === 'Administrador';
+    }
+
     public function viewRecent(User $user): bool
     {
         return $user->usu_rol === 'Administrador';

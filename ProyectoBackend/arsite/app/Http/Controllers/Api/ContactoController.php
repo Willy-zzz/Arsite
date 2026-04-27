@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Contacto;
+use App\Models\ContactoRespuesta;
 use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
@@ -156,10 +158,10 @@ class ContactoController extends BaseApiController
         if ($contacto->con_estado === 'Nuevo') {
             $contacto->update(['con_estado' => 'Leido']);
         }
-        
+
         return response()->json([
             'success' => true,
-            'data' => $contacto,
+            'data' => $contacto->load('respuestas.user:id,usu_nombre,email'),
             'message' => 'Contacto obtenido exitosamente'
         ]);
     }
@@ -541,6 +543,105 @@ class ContactoController extends BaseApiController
             return response()->json([
                 'success' => false,
                 'message' => 'Error al reenviar notificación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reply to a contacto from CMS and notify both client and admin inbox.
+     */
+    public function reply(Request $request, string|int $id): JsonResponse
+    {
+        $contacto = Contacto::with('respuestas.user:id,usu_nombre,email')->findOrFail($id);
+        $this->authorize('reply', $contacto);
+
+        $validator = Validator::make($request->all(), [
+            'mensaje' => 'required|string|max:5000',
+        ], [
+            'mensaje.required' => 'Debes escribir una respuesta.',
+            'mensaje.max' => 'La respuesta no puede exceder los 5000 caracteres.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Error de validación'
+            ], 422);
+        }
+
+        $adminEmail = config('mail.admin_email');
+        $mensaje = trim($request->input('mensaje'));
+        $respuesta = null;
+
+        DB::beginTransaction();
+
+        try {
+            $respuesta = ContactoRespuesta::create([
+                'con_id' => $contacto->con_id,
+                'user_id' => auth()->id(),
+                'cor_mensaje' => $mensaje,
+                'cor_tipo' => 'respuesta',
+            ]);
+
+            $contacto->update([
+                'con_estado' => 'Respondido',
+            ]);
+
+            Mail::send('emails.respuesta-contacto-cliente', [
+                'contacto' => $contacto,
+                'respuesta' => $respuesta,
+                'adminUser' => $request->user(),
+            ], function ($message) use ($contacto) {
+                $message->to($contacto->con_email, $contacto->con_nombre)
+                    ->subject('Respuesta a tu solicitud - Arsite Integradores')
+                    ->replyTo(config('mail.from.address'), config('mail.from.name'));
+            });
+
+            if ($adminEmail) {
+                Mail::send('emails.respuesta-contacto-admin', [
+                    'contacto' => $contacto,
+                    'respuesta' => $respuesta,
+                    'adminUser' => $request->user(),
+                ], function ($message) use ($adminEmail, $contacto) {
+                    $message->to($adminEmail)
+                        ->subject('Respuesta enviada al contacto - ' . $contacto->con_asunto)
+                        ->replyTo($contacto->con_email, $contacto->con_nombre);
+                });
+            }
+
+            DB::commit();
+
+            $contacto->load('respuestas.user:id,usu_nombre,email');
+
+            ApiAuditLogger::info('Respuesta enviada a contacto desde CMS', $request, [
+                'event' => 'contactos.reply.sent',
+                'record_id' => $contacto->con_id,
+                'contact_email' => $contacto->con_email,
+                'contact_status' => $contacto->con_estado,
+                'reply_id' => $respuesta->cor_id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'contacto' => $contacto,
+                    'respuesta' => $respuesta->load('user:id,usu_nombre,email'),
+                ],
+                'message' => 'Respuesta enviada exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            ApiAuditLogger::error('Error al responder contacto desde CMS', $request, [
+                'event' => 'contactos.reply.error',
+                'record_id' => $contacto->con_id,
+                'contact_email' => $contacto->con_email,
+            ], $e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar la respuesta. Verifica la configuración del correo e inténtalo nuevamente.'
             ], 500);
         }
     }

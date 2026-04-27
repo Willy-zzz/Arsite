@@ -91,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/bulk-delete', [ContactoController::class, 'bulkDelete']);
         Route::put('/mark-as-read', [ContactoController::class, 'markAsRead']);
         Route::post('/{id}/resend-notification', [ContactoController::class, 'resendNotification']);
+        Route::post('/{id}/reply', [ContactoController::class, 'reply']);
     });
     Route::apiResource('contactos', ContactoController::class)->except(['store']);
 

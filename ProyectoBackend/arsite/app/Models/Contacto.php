@@ -193,6 +193,11 @@ class Contacto extends Model
         return $this->created_at->diffInDays(now());
     }
 
+    public function respuestas()
+    {
+        return $this->hasMany(ContactoRespuesta::class, 'con_id', 'con_id')->latest('created_at');
+    }
+
     public function isPendiente(): bool
     {
         return in_array($this->con_estado, ['Nuevo', 'Leido']);
