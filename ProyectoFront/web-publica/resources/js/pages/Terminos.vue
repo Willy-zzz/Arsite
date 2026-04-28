@@ -120,9 +120,9 @@ import Hero from '@/components/Hero.vue'
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
-    width: auto;
-    max-width: 90%;
-    padding: 1rem 4rem;
+    width: min(92%, 960px);
+    max-width: 92%;
+    padding: 1rem 2rem;
 
 }
 
@@ -144,6 +144,11 @@ import Hero from '@/components/Hero.vue'
     color: #ffffff;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+:deep(.terminos-hero .overlay p) {
+    overflow-wrap: anywhere;
 }
 .terminos-page {
     min-height: 100vh;
@@ -154,6 +159,7 @@ import Hero from '@/components/Hero.vue'
     background: #ffffff;
     color: #333;
     line-height: 1.8;
+    overflow-wrap: anywhere;
 }
 
 .terminos-content h2 {
@@ -180,6 +186,7 @@ import Hero from '@/components/Hero.vue'
 .terminos-content ul {
     margin: 1rem 0 1.5rem 2rem;
     list-style-type: disc;
+    padding-left: 0.5rem;
 }
 
 .terminos-content li {
@@ -197,16 +204,64 @@ import Hero from '@/components/Hero.vue'
 }
 
 @media (max-width: 768px) {
+    :deep(.terminos-hero .overlay) {
+        width: calc(100% - 2rem);
+        max-width: calc(100% - 2rem);
+        padding: 0.85rem 1rem;
+    }
+
+    :deep(.terminos-hero .overlay h1) {
+        font-size: clamp(2rem, 8vw, 2.8rem);
+        margin-bottom: 0.65rem;
+    }
+
+    :deep(.terminos-hero .overlay p) {
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
     .terminos-content {
         padding: 40px 0;
     }
 
     .terminos-content h2 {
         font-size: 1.8rem;
+        line-height: 1.2;
     }
 
     .terminos-content h3 {
         font-size: 1.3rem;
+        line-height: 1.3;
+    }
+
+    .terminos-content p,
+    .terminos-content li {
+        text-align: left;
+    }
+
+    .terminos-content ul {
+        margin: 1rem 0 1.25rem 1.25rem;
+        padding-left: 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    :deep(.terminos-hero .overlay) {
+        width: calc(100% - 1.25rem);
+        max-width: calc(100% - 1.25rem);
+        padding: 0.75rem 0.85rem;
+    }
+
+    .terminos-content {
+        padding: 32px 0;
+    }
+
+    .terminos-content h2 {
+        font-size: 1.45rem;
+    }
+
+    .terminos-content h3 {
+        font-size: 1.15rem;
     }
 }
 </style>
