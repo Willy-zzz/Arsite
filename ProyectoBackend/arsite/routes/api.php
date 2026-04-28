@@ -38,6 +38,7 @@ Route::middleware([\App\Http\Middleware\LogPublicApiAccess::class])->group(funct
     //Rutas públicas del cms
     Route::get('clientes/public', [ClienteController::class, 'publicClientes']);
     Route::get('/partners/public', [PartnerController::class, 'publicPartners']);
+    Route::get('/servicios/public', [ServicioController::class, 'publicServicios']);
 });
 
 
@@ -119,7 +120,6 @@ Route::middleware('auth:sanctum')->group(function () {
     //Servicio CRUD
     Route::delete('/servicios/bulk-delete', [ServicioController::class, 'bulkDelete']);
     Route::get('/servicios/export', [ServicioController::class, 'export']);
-    Route::get('/servicios/public', [ServicioController::class, 'publicServicios']); // Sin auth
     Route::get('/servicios/statistics', [ServicioController::class, 'statistics']);
     Route::put('/servicios/update-order', [ServicioController::class, 'updateOrder']);
     Route::apiResource('servicios', ServicioController::class);

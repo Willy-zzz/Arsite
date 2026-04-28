@@ -1,11 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 
 const router = useRouter()
 const loading = ref(false)
 const imagePreview = ref(null)
+const imageInput = ref(null)
 const formErrors = ref({})
 const toast = ref({ show: false, message: '', type: 'success' })
 
@@ -24,19 +25,74 @@ const showToast = (message, type = 'success') => {
 	setTimeout(() => (toast.value.show = false), 4500)
 }
 
+const resetForm = () => {
+	form.value = {
+		ser_titulo: '',
+		ser_descripcion: '',
+		ser_imagen: null,
+		ser_orden: '',
+		ser_fecha_publicacion: '',
+		ser_fecha_terminacion: '',
+		ser_estatus: 'Guardado',
+	}
+	imagePreview.value = null
+	formErrors.value = {}
+	if (imageInput.value) {
+		imageInput.value.value = ''
+	}
+}
+
 const handleImageChange = (event) => {
 	const file = event.target.files[0]
-	if (file) {
-		form.value.ser_imagen = file
-		const reader = new FileReader()
-		reader.onload = (e) => (imagePreview.value = e.target.result)
-		reader.readAsDataURL(file)
+	formErrors.value.ser_imagen = null
+
+	if (!file) {
+		form.value.ser_imagen = null
+		imagePreview.value = null
+		return
 	}
+
+	const allowedTypes = [
+		'image/jpeg',
+		'image/png',
+		'image/jpg',
+		'image/gif',
+		'image/svg+xml',
+		'image/webp',
+	]
+
+	if (!allowedTypes.includes(file.type)) {
+		form.value.ser_imagen = null
+		imagePreview.value = null
+		formErrors.value.ser_imagen = ['La imagen debe ser JPG, PNG, GIF, SVG o WEBP']
+		if (imageInput.value) {
+			imageInput.value.value = ''
+		}
+		return
+	}
+
+	if (file.size > 5 * 1024 * 1024) {
+		form.value.ser_imagen = null
+		imagePreview.value = null
+		formErrors.value.ser_imagen = ['La imagen no puede superar los 5 MB']
+		if (imageInput.value) {
+			imageInput.value.value = ''
+		}
+		return
+	}
+
+	form.value.ser_imagen = file
+	const reader = new FileReader()
+	reader.onload = (e) => (imagePreview.value = e.target.result)
+	reader.readAsDataURL(file)
 }
 
 const removeImage = () => {
 	form.value.ser_imagen = null
 	imagePreview.value = null
+	if (imageInput.value) {
+		imageInput.value.value = ''
+	}
 }
 
 const saveServicio = async (estatus = null) => {
@@ -77,12 +133,13 @@ const saveServicio = async (estatus = null) => {
 			formData.append('ser_imagen', form.value.ser_imagen)
 		}
 
-		const response = await api.post('/services', formData, {
+		const response = await api.post('/servicios', formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
 		})
 
 		if (response.data.success) {
 			showToast(response.data.message, 'success')
+			resetForm()
 			setTimeout(() => router.push('/services'), 1400)
 		}
 	} catch (err) {
@@ -92,6 +149,10 @@ const saveServicio = async (estatus = null) => {
 		loading.value = false
 	}
 }
+
+onMounted(() => {
+	resetForm()
+})
 </script>
 
 <template>
@@ -315,7 +376,7 @@ const saveServicio = async (estatus = null) => {
 							<div>
 								<h2 class="text-sm font-bold text-gray-800">Imagen del servicio</h2>
 								<p class="text-xs text-gray-400 mt-0.5">
-									JPG, PNG, GIF, SVG · Máx. 2 MB
+									JPG, PNG, GIF, SVG, WEBP · Máx. 5 MB
 								</p>
 							</div>
 						</div>
@@ -334,7 +395,7 @@ const saveServicio = async (estatus = null) => {
 									>
 										<button
 											type="button"
-											@click="$refs.imageInput.click()"
+											@click="imageInput?.click()"
 											class="px-4 py-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold rounded-xl hover:bg-white transition-all shadow-lg"
 										>
 											Reemplazar
@@ -354,7 +415,7 @@ const saveServicio = async (estatus = null) => {
 							</div>
 							<div
 								v-else
-								@click="$refs.imageInput.click()"
+								@click="imageInput?.click()"
 								class="group border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-200"
 								:class="
 									formErrors.ser_imagen
@@ -408,7 +469,7 @@ const saveServicio = async (estatus = null) => {
 							<input
 								ref="imageInput"
 								type="file"
-								accept="image/*"
+								accept="image/jpeg,image/png,image/jpg,image/gif,image/svg+xml,image/webp"
 								class="hidden"
 								@change="handleImageChange"
 							/>

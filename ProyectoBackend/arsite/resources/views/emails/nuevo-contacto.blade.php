@@ -74,7 +74,10 @@
                             <div
                                 style="margin-top:20px; padding:12px; background:#fef3c7; border-radius:6px; font-size:13px;">
                                 ⚠️ Este mensaje proviene del formulario público. Verificar contenido antes de responder.
-                                Responder en el CMS para mantener un registro centralizado de las comunicaciones.
+                            </div>
+                            <div
+                                style="margin-top:20px; padding:12px; background:#ff0000; color: #FFFFFF; border-radius:6px; font-size:13px;">
+                                ⚠️ Responder en el CMS para mantener un registro centralizado de las comunicaciones.
                             </div>
 
                             <!-- BOTONES -->

@@ -27,7 +27,9 @@ class ServicioController extends BaseApiController
     public function __construct()
     {
         //Autoriza automáticamente con policies
-        $this->authorizeResource(Servicio::class, 'servicio');
+        $this->authorizeResource(Servicio::class, 'servicio', [
+            'except' => ['publicServicios'],
+        ]);
     }
 
     /**
@@ -489,7 +491,7 @@ class ServicioController extends BaseApiController
 
             // Imagen: requerida en create, opcional en update
             'ser_imagen' => ($isUpdate ? 'nullable|sometimes|' : 'required|') .
-                'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048|dimensions:max_width=3000,max_height=3000',
+                'image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
 
             // Orden: opcional, entero >= 0
             'ser_orden' => 'nullable|integer|min:0',

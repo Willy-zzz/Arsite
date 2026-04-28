@@ -1,8 +1,9 @@
 <template>
   <div class="services-page">
-    <!-- HERO FULL WIDTH -->
-    <Hero title="Servicios" 
-      subtitle="Soluciones integrales en tecnología, seguridad y conectividad"/>
+    <Hero
+      title="Servicios"
+      subtitle="Soluciones integrales en tecnología, seguridad y conectividad"
+    />
 
     <section class="services-content container">
       <h2 class="section-title">Nuestros Servicios</h2>
@@ -10,7 +11,6 @@
         Acompañamos tu negocio en cada etapa con soluciones a medida
       </p>
 
-      <!-- Beneficios -->
       <div class="benefits-section">
         <h3 class="benefits-title">
           Beneficios que nuestros clientes obtienen:
@@ -23,12 +23,46 @@
         </div>
       </div>
 
-      <!-- SERVICIOS -->
-      <div class="services-sections">
-        <section v-for="(service, index) in services" :key="index" class="service-section"
-          :class="{ reverse: index % 2 !== 0 }">
+      <div v-if="loading" class="services-sections">
+        <section
+          v-for="n in 4"
+          :key="`skeleton-${n}`"
+          class="service-section service-section-skeleton"
+          :class="{ reverse: n % 2 === 0 }"
+        >
           <div class="service-image-wrapper">
-            <img :src="service.image" :alt="service.title" />
+            <div class="service-image-skeleton skeleton-block"></div>
+          </div>
+
+          <div class="service-content">
+            <div class="service-title-skeleton skeleton-block"></div>
+            <div class="service-text-skeleton">
+              <div class="skeleton-line skeleton-block"></div>
+              <div class="skeleton-line skeleton-block"></div>
+              <div class="skeleton-line skeleton-block"></div>
+              <div class="skeleton-line skeleton-block short"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div v-else-if="error" class="services-state services-state-error">
+        {{ error }}
+      </div>
+
+      <div v-else-if="!services.length" class="services-state">
+        No hay servicios publicados por el momento.
+      </div>
+
+      <div v-else class="services-sections">
+        <section
+          v-for="(service, index) in services"
+          :key="service.id"
+          class="service-section"
+          :class="{ reverse: index % 2 !== 0 }"
+        >
+          <div class="service-image-wrapper">
+            <img :src="service.image" :alt="service.title" loading="lazy" />
           </div>
 
           <div class="service-content">
@@ -36,10 +70,6 @@
             <p style="white-space: pre-line;">
               {{ service.description }}
             </p>
-
-            <!-- <router-link :to="service.link" class="service-button">
-              Más información →
-            </router-link> -->
           </div>
         </section>
       </div>
@@ -48,46 +78,54 @@
 </template>
 
 <script setup>
+import { onMounted, ref } from 'vue'
 import Hero from '@/components/Hero.vue'
+import axios from '@/axios'
+import logger from '@/utils/logger'
 
-const services = [
-  {
-    title: 'Auditoría',
-    description: `Parte del servicio que Arsite Integradores ofrece es identificar las principales exigencias, necesidades, debilidades y fortalezas tecnológicas de su empresa. Para  establecer cuales son la tecnologías apropiadas para satisfacer de manera óptima esas necesidades.
-    
-    Con este servicio se podrá averiguar la forma en que se optimizaran los procesos y procedimientos internos de la empresa a través del uso o buen uso de tecnologías adecuadas.`,
-    image: '/img/servicio/auditoria.jpg',
-    link: '/servicios/auditoria'
-  },
-  {
-    title: 'Capacitación',
-    description: `Como parte del desarrollo de habilidades Arsite Integradores a través de su area de capacitación, diseñamos cursos que le permitan hacer uso eficiente de las tecnologías adquiridas y así obtener el mejor beneficio de su inversión tecnológica.`,
-    image: '/img/servicio/capacitacion.jpg',
-    link: '/servicios/capacitacion'
-  },
-  {
-    title: 'Consultoría',
-    description: `Arsite integradores está comprometido en apoyar la empresa del cliente a través del uso de Tecnologías de Información, en este servicio se provee al cliente herramientas para la alineación de las soluciones tecnológicas con sus objetivos, aportando beneficios tangibles a nuestros clientes mediante un servicio especializado.
+const services = ref([])
+const loading = ref(true)
+const error = ref('')
 
-    Arsite Integradores le brinda la asesoría necesaria para contestar diversas preguntas que comúnmente se hace en su empresa:
+const backendBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '')
 
-    ¿Qué tecnologías debo usar?
-    ¿Cuál es la más adecuada para mi empresa?
-    ¿Cuál puedo pagar?
-    ¿Cuál es el objetivo de implementar esta tecnología?
-    ¿Me servirá esta tecnología en el futuro?`,
-    image: '/img/servicio/consultoria.jpg',
-    link: '/servicios/consultoria'
-  },
-  {
-    title: 'Proyectos',
-    description: `Este servicio ofrece el diseño mediante la satisfacción de una necesidad tecnológica,  tiene como fin solucionar la situación problemática particular del área de tecnología, a través del diseño, desarrollo, construcción, evaluación e impacto (económico y ambiente social) del producto o proceso en su empresa.
+const getServiceImageUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${backendBaseUrl}/storage/${path}`
+}
 
-    Así mismo el servicio de elaboración de proyectos para programación o presupuestos en la generación del proyecto tecnológico, a instituciones o dependencias que lo requieran.`,
-    image: '/img/servicio/proyectos.jpg',
-    link: '/servicios/proyectos'
+const mapService = (service) => ({
+  id: service.ser_id,
+  title: service.ser_titulo,
+  description: service.ser_descripcion,
+  image: getServiceImageUrl(service.ser_imagen),
+})
+
+const fetchServices = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await axios.get('/servicios/public', {
+      params: {
+        sort_by: 'ser_orden',
+        sort_direction: 'asc',
+      },
+    })
+
+    if (response.data?.success) {
+      services.value = (response.data.data || []).map(mapService)
+    } else {
+      error.value = 'No fue posible cargar los servicios.'
+    }
+  } catch (err) {
+    logger.error('Error al cargar servicios publicos', err)
+    error.value = 'Error al cargar los servicios.'
+  } finally {
+    loading.value = false
   }
-]
+}
 
 const beneficios = [
   { id: '01', texto: 'Alineación de la tecnología con los objetivos del negocio' },
@@ -98,8 +136,10 @@ const beneficios = [
   { id: '06', texto: 'Reducción de los ciclos de desarrollo de sus productos y servicios' },
   { id: '07', texto: 'Reducción de tiempos y costos' },
   { id: '08', texto: 'Respuesta rápida a las necesidades de los clientes' },
-  { id: '09', texto: 'Ventajas competitivas respecto a la competencia' }
+  { id: '09', texto: 'Ventajas competitivas respecto a la competencia' },
 ]
+
+onMounted(fetchServices)
 </script>
 
 <style scoped>
@@ -127,7 +167,16 @@ const beneficios = [
   margin-bottom: 3rem;
 }
 
-/* Beneficios */
+.services-state {
+  text-align: center;
+  padding: 2rem;
+  color: #4a5568;
+}
+
+.services-state-error {
+  color: #b91c1c;
+}
+
 .benefits-section {
   margin-bottom: 60px;
   background: #f8fafc;
@@ -167,7 +216,11 @@ const beneficios = [
   text-align: right;
 }
 
-/* Servicios */
+.benefit-text {
+  color: #4a5568;
+  line-height: 1.6;
+}
+
 .services-sections {
   display: flex;
   flex-direction: column;
@@ -185,6 +238,10 @@ const beneficios = [
   flex-direction: row-reverse;
 }
 
+.service-section-skeleton {
+  align-items: stretch;
+}
+
 .service-image-wrapper {
   flex: 1;
 }
@@ -194,6 +251,12 @@ const beneficios = [
   border-radius: 20px;
   object-fit: cover;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.service-image-skeleton {
+  width: 100%;
+  min-height: 320px;
+  border-radius: 20px;
 }
 
 .service-content {
@@ -214,23 +277,49 @@ const beneficios = [
   margin-bottom: 1.5rem;
 }
 
-/* .service-button {
-  display: inline-block;
-  padding: 10px 24px;
-  background: #65B3CA;
-  color: white;
-  border-radius: 30px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: 0.3s ease;
+.service-title-skeleton {
+  height: 2.25rem;
+  width: min(280px, 70%);
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
 }
 
-.service-button:hover {
-  background: #3b82f6;
-  transform: translateY(-3px);
-} */
+.service-text-skeleton {
+  display: grid;
+  gap: 0.85rem;
+}
 
-/* Responsive */
+.skeleton-line {
+  height: 1rem;
+  width: 100%;
+  border-radius: 999px;
+}
+
+.skeleton-line.short {
+  width: 72%;
+}
+
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e2e8f0 37%,
+    #f0f0f0 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 @media (max-width: 992px) {
   .benefits-grid {
     grid-template-columns: 1fr;
