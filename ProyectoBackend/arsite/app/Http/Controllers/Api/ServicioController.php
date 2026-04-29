@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Servicio;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -510,7 +511,7 @@ class ServicioController extends BaseApiController
         }
 
         // Validación con closure after() para lógica compleja de fechas
-        return Validator::make($request->all(), $rules, [
+        return ApiAuditLogger::auditValidation(Validator::make($request->all(), $rules, [
             'ser_imagen.required' => 'La imagen del servicio es obligatoria.',
             'ser_imagen.image' => 'El archivo seleccionado debe ser una imagen válida.',
             'ser_imagen.mimes' => 'La imagen debe estar en formato JPG, PNG, GIF, SVG o WEBP.',
@@ -553,7 +554,11 @@ class ServicioController extends BaseApiController
                         );
                     }
                 }
-            });
+            }),
+            $request,
+            'servicios.validation.failed',
+            ['module' => 'servicios']
+        );
     }
 
     /**

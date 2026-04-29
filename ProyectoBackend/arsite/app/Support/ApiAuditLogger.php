@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -121,5 +122,23 @@ class ApiAuditLogger
         }
 
         return $sanitized;
+    }
+
+    public static function auditValidation(
+        Validator $validator,
+        Request $request,
+        string $event,
+        array $context = []
+    ): Validator {
+        return $validator->after(function (Validator $validator) use ($request, $event, $context) {
+            if ($validator->errors()->isEmpty()) {
+                return;
+            }
+
+            self::warning('Validación rechazada', $request, array_merge([
+                'event' => $event,
+                'validation_errors' => $validator->errors()->toArray(),
+            ], $context));
+        });
     }
 }

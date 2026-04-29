@@ -2,10 +2,19 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import {
+	IMAGE_ACCEPT,
+	clearFileInput,
+	createFilePreview,
+	logClientValidation,
+	setFieldError,
+	validateImageFile,
+} from '@/utils/formValidation'
 
 const router = useRouter()
 const loading = ref(false)
 const imagePreview = ref(null)
+const imageInput = ref(null)
 const formErrors = ref({})
 const toast = ref({ show: false, message: '', type: 'success' })
 const isDragging = ref(false)
@@ -17,24 +26,37 @@ const showToast = (message, type = 'success') => {
 	setTimeout(() => (toast.value.show = false), 4000)
 }
 
-const processFile = (file) => {
+const processFile = async (file) => {
+	const validation = validateImageFile(file, {
+		label: 'La imagen',
+		maxSizeMB: 2,
+	})
+
+	if (!validation.valid) {
+		form.value.pro_imagen = null
+		imagePreview.value = null
+		setFieldError(formErrors, 'pro_imagen', validation.message)
+		clearFileInput(imageInput)
+		return
+	}
+
 	form.value.pro_imagen = file
-	const reader = new FileReader()
-	reader.onload = (e) => (imagePreview.value = e.target.result)
-	reader.readAsDataURL(file)
+	delete formErrors.value.pro_imagen
+	imagePreview.value = await createFilePreview(file)
 }
-const handleImageChange = (e) => {
+const handleImageChange = async (e) => {
 	const f = e.target.files[0]
-	if (f) processFile(f)
+	if (f) await processFile(f)
 }
-const handleDrop = (e) => {
+const handleDrop = async (e) => {
 	isDragging.value = false
 	const f = e.dataTransfer.files[0]
-	if (f?.type.startsWith('image/')) processFile(f)
+	if (f) await processFile(f)
 }
 const removeImage = () => {
 	form.value.pro_imagen = null
 	imagePreview.value = null
+	clearFileInput(imageInput)
 }
 
 const saveProducto = async (estatus = null) => {
@@ -47,6 +69,7 @@ const saveProducto = async (estatus = null) => {
 	if (!form.value.pro_imagen) formErrors.value.pro_imagen = ['La imagen es obligatoria']
 
 	if (Object.keys(formErrors.value).length > 0) {
+		logClientValidation('ProductCreateView', formErrors.value)
 		showToast('Por favor completa todos los campos obligatorios', 'error')
 		loading.value = false
 		return
@@ -58,7 +81,7 @@ const saveProducto = async (estatus = null) => {
 		if (form.value.pro_imagen instanceof File)
 			formData.append('pro_imagen', form.value.pro_imagen)
 
-		const response = await api.post('/products', formData, {
+		const response = await api.post('/productos', formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
 		})
 		if (response.data.success) {
@@ -272,7 +295,7 @@ const saveProducto = async (estatus = null) => {
 								<h2 class="text-sm font-semibold text-[#1c2321]">
 									Imagen del producto
 								</h2>
-								<p class="text-xs text-gray-400 mt-0.5">JPG, PNG, GIF · Máx 2 MB</p>
+								<p class="text-xs text-gray-400 mt-0.5">JPG, PNG, GIF, SVG o WEBP · Máx 2 MB</p>
 							</div>
 						</div>
 						<div class="px-7 py-6">
@@ -394,7 +417,7 @@ const saveProducto = async (estatus = null) => {
 							<input
 								ref="imageInput"
 								type="file"
-								accept="image/jpeg,image/png,image/gif"
+							:accept="IMAGE_ACCEPT"
 								class="hidden"
 								@change="handleImageChange"
 							/>

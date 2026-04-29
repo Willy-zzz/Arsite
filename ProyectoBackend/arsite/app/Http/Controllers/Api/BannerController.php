@@ -538,7 +538,12 @@ class BannerController extends BaseApiController
         // Caso 1: Se envía nueva fecha de publicación -> comparar contra ella
         if ($request->filled('ban_fecha_publicacion')) {
             $rules['ban_fecha_terminacion'] = 'nullable|date|after_or_equal:ban_fecha_publicacion';
-            return Validator::make($request->all(), $rules, $messages);
+            return ApiAuditLogger::auditValidation(
+                Validator::make($request->all(), $rules, $messages),
+                $request,
+                'banners.validation.failed',
+                ['module' => 'banners']
+            );
         }
 
         // Caso 2: Es UPDATE y NO se envía fecha de publicación -> comparar contra BD
@@ -546,7 +551,8 @@ class BannerController extends BaseApiController
             $rules['ban_fecha_terminacion'] = 'nullable|date';
             
             // Hook manual para comparar request vs valor en BD
-            return Validator::make($request->all(), $rules, $messages)
+            return ApiAuditLogger::auditValidation(
+                Validator::make($request->all(), $rules, $messages)
                 ->after(function ($validator) use ($request, $banner) {
                     if ($request->filled('ban_fecha_terminacion')) {
                         // Parsear con Carbon para comparación robusta
@@ -561,12 +567,21 @@ class BannerController extends BaseApiController
                             );
                         }
                     }
-                });
+                }),
+                $request,
+                'banners.validation.failed',
+                ['module' => 'banners']
+            );
         }
 
         // Caso 3: No hay fecha de publicación ni en request ni en BD
         $rules['ban_fecha_terminacion'] = 'nullable|date';
-        return Validator::make($request->all(), $rules, $messages);
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules, $messages),
+            $request,
+            'banners.validation.failed',
+            ['module' => 'banners']
+        );
     }
 
     // private function uploadImage($file): string

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Noticia;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -443,7 +444,19 @@ class NoticiaController extends BaseApiController
             $rules['not_publicacion'] .= '|after_or_equal:today';
         }
 
-        return Validator::make($request->all(), $rules);
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules, [
+                'not_portada.mimes' => 'La portada debe estar en formato JPG, PNG, GIF o WEBP.',
+                'not_portada.max' => 'La portada no puede superar los 4 MB.',
+                'not_portada.uploaded' => 'La portada no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+                'not_imagen.mimes' => 'La imagen del cuerpo debe estar en formato JPG, PNG, GIF o WEBP.',
+                'not_imagen.max' => 'La imagen del cuerpo no puede superar los 4 MB.',
+                'not_imagen.uploaded' => 'La imagen del cuerpo no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+            ]),
+            $request,
+            'noticias.validation.failed',
+            ['module' => 'noticias']
+        );
     }
 
     /**

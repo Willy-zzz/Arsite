@@ -17,6 +17,14 @@ import { CharacterCount } from '@tiptap/extension-character-count'
 import { Image } from '@tiptap/extension-image'
 import { createLowlight, common } from 'lowlight'
 import api from '@/services/api'
+import {
+	IMAGE_ACCEPT,
+	clearFileInput,
+	createFilePreview,
+	logClientValidation,
+	setFieldError,
+	validateImageFile,
+} from '@/utils/formValidation'
 
 const router = useRouter()
 const lowlight = createLowlight(common)
@@ -150,25 +158,39 @@ const applyColor = (color) => {
 }
 
 // Imágenes portada/cuerpo
-const handlePortadaChange = (e) => {
+const handlePortadaChange = async (e) => {
 	const file = e.target.files[0]
 	if (!file) return
+
+	const validation = validateImageFile(file, { label: 'La imagen de portada', maxSizeMB: 4 })
+	if (!validation.valid) {
+		form.value.not_portada = null
+		portadaPreview.value = null
+		setFieldError(formErrors, 'not_portada', validation.message)
+		clearFileInput(portadaInput)
+		return
+	}
+
 	form.value.not_portada = file
-	const reader = new FileReader()
-	reader.onload = (ev) => {
-		portadaPreview.value = ev.target.result
-	}
-	reader.readAsDataURL(file)
+	delete formErrors.value.not_portada
+	portadaPreview.value = await createFilePreview(file)
 }
-const handleImagenChange = (e) => {
+const handleImagenChange = async (e) => {
 	const file = e.target.files[0]
 	if (!file) return
-	form.value.not_imagen = file
-	const reader = new FileReader()
-	reader.onload = (ev) => {
-		imagenPreview.value = ev.target.result
+
+	const validation = validateImageFile(file, { label: 'La imagen del cuerpo', maxSizeMB: 4 })
+	if (!validation.valid) {
+		form.value.not_imagen = null
+		imagenPreview.value = null
+		setFieldError(formErrors, 'not_imagen', validation.message)
+		clearFileInput(imagenInput)
+		return
 	}
-	reader.readAsDataURL(file)
+
+	form.value.not_imagen = file
+	delete formErrors.value.not_imagen
+	imagenPreview.value = await createFilePreview(file)
 }
 const removePortada = () => {
 	form.value.not_portada = null
@@ -183,14 +205,20 @@ const removeImagen = () => {
 
 // Imagen dentro del editor
 const insertImage = () => editorImageInput.value?.click()
-const handleEditorImageUpload = (e) => {
+const handleEditorImageUpload = async (e) => {
 	const file = e.target.files[0]
 	if (!file) return
-	const reader = new FileReader()
-	reader.onload = (ev) => {
-		editor.value?.chain().focus().setImage({ src: ev.target.result }).run()
+
+	const validation = validateImageFile(file, { label: 'La imagen del editor', maxSizeMB: 4 })
+	if (!validation.valid) {
+		setFieldError(formErrors, 'not_imagen', validation.message)
+		clearFileInput(editorImageInput)
+		return
 	}
-	reader.readAsDataURL(file)
+
+	delete formErrors.value.not_imagen
+	const imageSrc = await createFilePreview(file)
+	editor.value?.chain().focus().setImage({ src: imageSrc }).run()
 	e.target.value = ''
 }
 
@@ -230,6 +258,12 @@ const validateForm = () => {
 	const isEmpty = content === '' || content === '<p></p>'
 	if (!form.value.not_titulo.trim()) formErrors.value.not_titulo = ['El título es obligatorio']
 	if (isEmpty) formErrors.value.not_descripcion = ['El contenido es obligatorio']
+	if (form.value.not_titulo.length > 100) {
+		formErrors.value.not_titulo = ['El título no puede superar los 100 caracteres']
+	}
+	if (form.value.not_subtitulo?.length > 300) {
+		formErrors.value.not_subtitulo = ['El subtítulo no puede superar los 300 caracteres']
+	}
 	return Object.keys(formErrors.value).length === 0
 }
 
@@ -237,6 +271,7 @@ const handleSubmit = async () => {
 	error.value = null
 	successMessage.value = null
 	if (!validateForm()) {
+		logClientValidation('NewsCreateView', formErrors.value)
 		error.value = 'Por favor completa todos los campos obligatorios'
 		window.scrollTo({ top: 0, behavior: 'smooth' })
 		return
@@ -944,7 +979,7 @@ const handleSubmit = async () => {
 						<input
 							ref="editorImageInput"
 							type="file"
-							accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+							:accept="IMAGE_ACCEPT"
 							@change="handleEditorImageUpload"
 							class="hidden"
 						/>
@@ -996,6 +1031,12 @@ const handleSubmit = async () => {
 							frameborder="0"
 							allowfullscreen
 						></iframe>
+						<p v-if="formErrors.not_imagen" class="mt-2 text-sm text-red-500 text-center">
+							{{ formErrors.not_imagen[0] }}
+						</p>
+						<p v-if="formErrors.not_imagen" class="mt-2 text-sm text-red-500 text-center">
+							{{ formErrors.not_imagen[0] }}
+						</p>
 					</div>
 				</div>
 			</div>
@@ -1154,7 +1195,7 @@ const handleSubmit = async () => {
 						<input
 							ref="portadaInput"
 							type="file"
-							accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+							:accept="IMAGE_ACCEPT"
 							@change="handlePortadaChange"
 							class="hidden"
 						/>
@@ -1212,6 +1253,9 @@ const handleSubmit = async () => {
 						<p class="text-xs text-gray-400 mt-2.5 text-center">
 							JPG, PNG, WEBP · Máx. 4MB · Rec. 1200×630px
 						</p>
+						<p v-if="formErrors.not_portada" class="mt-2 text-sm text-red-500 text-center">
+							{{ formErrors.not_portada[0] }}
+						</p>
 					</div>
 				</div>
 
@@ -1242,7 +1286,7 @@ const handleSubmit = async () => {
 						<input
 							ref="imagenInput"
 							type="file"
-							accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+							:accept="IMAGE_ACCEPT"
 							@change="handleImagenChange"
 							class="hidden"
 						/>

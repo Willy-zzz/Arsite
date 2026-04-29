@@ -657,7 +657,8 @@ class ClienteController extends BaseApiController
             $rules['cli_fecha_terminacion'] = ['nullable', 'date'];
 
             // Validación custom con closure after()
-            return Validator::make($request->all(), $rules)->after(function ($v) use ($request, $cliente) {
+            return ApiAuditLogger::auditValidation(
+                Validator::make($request->all(), $rules)->after(function ($v) use ($request, $cliente) {
                 if ($request->filled('cli_fecha_terminacion')) {
                     // Parsear ambas fechas con Carbon para comparación robusta
                     $fechaFin = Carbon::parse($request->cli_fecha_terminacion);
@@ -671,14 +672,23 @@ class ClienteController extends BaseApiController
                         );
                     }
                 }
-            });
+            }),
+                $request,
+                'clientes.validation.failed',
+                ['module' => 'clientes']
+            );
         }
         // Caso 3: No hay fecha de publicación de referencia
         else {
             $rules['cli_fecha_terminacion'] = ['nullable', 'date'];
         }
 
-        return Validator::make($request->all(), $rules);
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules),
+            $request,
+            'clientes.validation.failed',
+            ['module' => 'clientes']
+        );
     }
 
     /**

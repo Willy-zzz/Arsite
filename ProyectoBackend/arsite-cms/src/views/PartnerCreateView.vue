@@ -2,10 +2,19 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import {
+	IMAGE_ACCEPT,
+	clearFileInput,
+	createFilePreview,
+	logClientValidation,
+	setFieldError,
+	validateImageFile,
+} from '@/utils/formValidation'
 
 const router = useRouter()
 const loading = ref(false)
 const logoPreview = ref(null)
+const logoInput = ref(null)
 const formErrors = ref({})
 const toast = ref({ show: false, message: '', type: 'success' })
 
@@ -24,19 +33,33 @@ const showToast = (message, type = 'success') => {
 	setTimeout(() => (toast.value.show = false), 4500)
 }
 
-const handleLogoChange = (event) => {
+const handleLogoChange = async (event) => {
 	const file = event.target.files[0]
-	if (file) {
-		form.value.par_logo = file
-		const reader = new FileReader()
-		reader.onload = (e) => (logoPreview.value = e.target.result)
-		reader.readAsDataURL(file)
+
+	if (!file) {
+		form.value.par_logo = null
+		logoPreview.value = null
+		return
 	}
+
+	const validation = validateImageFile(file, { label: 'El logotipo', maxSizeMB: 3 })
+	if (!validation.valid) {
+		form.value.par_logo = null
+		logoPreview.value = null
+		setFieldError(formErrors, 'par_logo', validation.message)
+		clearFileInput(logoInput)
+		return
+	}
+
+	form.value.par_logo = file
+	delete formErrors.value.par_logo
+	logoPreview.value = await createFilePreview(file)
 }
 
 const removeLogo = () => {
 	form.value.par_logo = null
 	logoPreview.value = null
+	clearFileInput(logoInput)
 }
 
 const savePartner = async (estatus = null) => {
@@ -55,6 +78,7 @@ const savePartner = async (estatus = null) => {
 	}
 
 	if (Object.keys(formErrors.value).length > 0) {
+		logClientValidation('PartnerCreateView', formErrors.value)
 		showToast('Por favor completa todos los campos obligatorios', 'error')
 		loading.value = false
 		return
@@ -420,7 +444,7 @@ const savePartner = async (estatus = null) => {
 							<input
 								ref="logoInput"
 								type="file"
-								accept="image/*"
+							:accept="IMAGE_ACCEPT"
 								class="hidden"
 								@change="handleLogoChange"
 							/>

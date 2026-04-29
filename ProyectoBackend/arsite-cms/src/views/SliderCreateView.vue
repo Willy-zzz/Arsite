@@ -2,11 +2,21 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import {
+	IMAGE_ACCEPT,
+	clearFileInput,
+	createFilePreview,
+	isValidUrl,
+	logClientValidation,
+	setFieldError,
+	validateImageFile,
+} from '@/utils/formValidation'
 
 const router = useRouter()
 
 const loading = ref(false)
 const imagePreview = ref(null)
+const imageInput = ref(null)
 const formErrors = ref({})
 const toast = ref({ show: false, message: '', type: 'success' })
 const showPreviewModal = ref(false)
@@ -36,25 +46,35 @@ const showToast = (message, type = 'success') => {
 	setTimeout(() => (toast.value.show = false), 4000)
 }
 
-const processFile = (file) => {
+const processFile = async (file) => {
+	const validation = validateImageFile(file, { label: 'La imagen', maxSizeMB: 3 })
+
+	if (!validation.valid) {
+		form.value.des_imagen = null
+		imagePreview.value = null
+		setFieldError(formErrors, 'des_imagen', validation.message)
+		clearFileInput(imageInput)
+		return
+	}
+
 	form.value.des_imagen = file
-	const reader = new FileReader()
-	reader.onload = (e) => (imagePreview.value = e.target.result)
-	reader.readAsDataURL(file)
+	delete formErrors.value.des_imagen
+	imagePreview.value = await createFilePreview(file)
 }
 
-const handleImageChange = (e) => {
+const handleImageChange = async (e) => {
 	const f = e.target.files[0]
-	if (f) processFile(f)
+	if (f) await processFile(f)
 }
-const handleDrop = (e) => {
+const handleDrop = async (e) => {
 	isDragging.value = false
 	const f = e.dataTransfer.files[0]
-	if (f?.type.startsWith('image/')) processFile(f)
+	if (f) await processFile(f)
 }
 const removeImage = () => {
 	form.value.des_imagen = null
 	imagePreview.value = null
+	clearFileInput(imageInput)
 }
 
 const saveSlider = async (estatus = null) => {
@@ -73,9 +93,13 @@ const saveSlider = async (estatus = null) => {
 		if (!form.value[campo] || form.value[campo].trim() === '')
 			formErrors.value[campo] = [mensaje]
 	}
+	if (form.value.des_enlace_boton && !isValidUrl(form.value.des_enlace_boton)) {
+		formErrors.value.des_enlace_boton = ['Ingresa una URL válida que comience con http:// o https://']
+	}
 	if (!form.value.des_imagen) formErrors.value.des_imagen = ['La imagen es obligatoria']
 
 	if (Object.keys(formErrors.value).length > 0) {
+		logClientValidation('SliderCreateView', formErrors.value)
 		showToast('Por favor completa todos los campos obligatorios', 'error')
 		loading.value = false
 		return
@@ -417,7 +441,7 @@ const saveSlider = async (estatus = null) => {
 									Imagen del slider
 								</h2>
 								<p class="text-xs text-gray-400 mt-0.5">
-									JPG, PNG, GIF, SVG · Máx 2 MB · Recomendado: 1920 × 600 px
+										JPG, PNG, GIF, SVG o WEBP · Máx 3 MB · Recomendado: 1920 × 600 px
 								</p>
 							</div>
 						</div>
@@ -582,7 +606,7 @@ const saveSlider = async (estatus = null) => {
 							<input
 								ref="imageInput"
 								type="file"
-								accept="image/*"
+							:accept="IMAGE_ACCEPT"
 								class="hidden"
 								@change="handleImageChange"
 							/>

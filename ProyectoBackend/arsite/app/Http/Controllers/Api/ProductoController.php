@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Producto;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -473,7 +474,16 @@ class ProductoController extends BaseApiController
             'pro_estatus' => ($isUpdate ? 'sometimes|' : 'required|') . 'in:Publicado,Guardado',
         ];
 
-        return Validator::make($request->all(), $rules);
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules, [
+                'pro_imagen.mimes' => 'La imagen debe estar en formato JPG, PNG, GIF, SVG o WEBP.',
+                'pro_imagen.max' => 'La imagen no puede superar los 2 MB.',
+                'pro_imagen.uploaded' => 'La imagen no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+            ]),
+            $request,
+            'productos.validation.failed',
+            ['module' => 'productos']
+        );
     }
 
     /**

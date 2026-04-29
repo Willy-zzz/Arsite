@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -553,7 +554,16 @@ class PartnerController extends BaseApiController
         // Caso 1: Si viene nueva fecha de publicación en el request
         if ($request->filled('par_fecha_publicacion')) {
             $rules['par_fecha_terminacion'] = 'nullable|date|after_or_equal:par_fecha_publicacion';
-            return Validator::make($request->all(), $rules);
+            return ApiAuditLogger::auditValidation(
+                Validator::make($request->all(), $rules, [
+                    'par_logo.mimes' => 'El logotipo debe estar en formato JPG, PNG, GIF, SVG o WEBP.',
+                    'par_logo.max' => 'El logotipo no puede superar los 3 MB.',
+                    'par_logo.uploaded' => 'El logotipo no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+                ]),
+                $request,
+                'partners.validation.failed',
+                ['module' => 'partners']
+            );
         }
 
         // Caso 2: Es update Y NO viene fecha nueva PERO existe en BD
@@ -561,8 +571,12 @@ class PartnerController extends BaseApiController
             $rules['par_fecha_terminacion'] = 'nullable|date';
 
             // Validación custom con closure after()
-            return Validator::make($request->all(), $rules)
-                ->after(function ($validator) use ($request, $partner) {
+            return ApiAuditLogger::auditValidation(
+                Validator::make($request->all(), $rules, [
+                    'par_logo.mimes' => 'El logotipo debe estar en formato JPG, PNG, GIF, SVG o WEBP.',
+                    'par_logo.max' => 'El logotipo no puede superar los 3 MB.',
+                    'par_logo.uploaded' => 'El logotipo no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+                ])->after(function ($validator) use ($request, $partner) {
                     if ($request->filled('par_fecha_terminacion')) {
                         // Parsear con Carbon para comparación robusta
                         $fechaFin    = Carbon::parse($request->par_fecha_terminacion);
@@ -576,12 +590,25 @@ class PartnerController extends BaseApiController
                             );
                         }
                     }
-                });
+                }),
+                $request,
+                'partners.validation.failed',
+                ['module' => 'partners']
+            );
         }
 
         // Caso 3: No hay fecha de publicación de referencia
         $rules['par_fecha_terminacion'] = 'nullable|date';
-        return Validator::make($request->all(), $rules);
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules, [
+                'par_logo.mimes' => 'El logotipo debe estar en formato JPG, PNG, GIF, SVG o WEBP.',
+                'par_logo.max' => 'El logotipo no puede superar los 3 MB.',
+                'par_logo.uploaded' => 'El logotipo no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+            ]),
+            $request,
+            'partners.validation.failed',
+            ['module' => 'partners']
+        );
     }
 
     /**

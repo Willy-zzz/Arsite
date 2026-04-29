@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Destacado;
+use App\Support\ApiAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -466,8 +467,12 @@ class DestacadoController extends BaseApiController
         }
 
         // Validación con closure after() para lógica compleja
-        return Validator::make($request->all(), $rules)
-            ->after(function ($validator) use ($request, $destacado, $isUpdate) {
+        return ApiAuditLogger::auditValidation(
+            Validator::make($request->all(), $rules, [
+                'des_imagen.mimes' => 'La imagen debe estar en formato JPG, PNG, GIF o SVG.',
+                'des_imagen.max' => 'La imagen no puede superar los 3 MB.',
+                'des_imagen.uploaded' => 'La imagen no se pudo subir al servidor. Verifica su tamaño e inténtalo nuevamente.',
+            ])->after(function ($validator) use ($request, $destacado, $isUpdate) {
 
                 // CASO 1: Ambas fechas vienen en el request (Inicio y fin)
                 // Validar que terminación >= publicación
@@ -503,7 +508,11 @@ class DestacadoController extends BaseApiController
                         );
                     }
                 }
-            });
+            }),
+            $request,
+            'destacados.validation.failed',
+            ['module' => 'destacados']
+        );
     }
 
     /**

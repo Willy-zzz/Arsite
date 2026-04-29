@@ -2,11 +2,21 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import {
+	IMAGE_ACCEPT,
+	clearFileInput,
+	createFilePreview,
+	isValidUrl,
+	logClientValidation,
+	setFieldError,
+	validateImageFile,
+} from '@/utils/formValidation'
 
 const router = useRouter()
 
 const loading = ref(false)
 const imagePreview = ref(null)
+const imageInput = ref(null)
 const formErrors = ref({})
 const toast = ref({ show: false, message: '', type: 'success' })
 const showPreviewModal = ref(false)
@@ -36,27 +46,37 @@ const showToast = (message, type = 'success') => {
 	setTimeout(() => (toast.value.show = false), 4000)
 }
 
-const handleImageChange = (event) => {
+const handleImageChange = async (event) => {
 	const file = event.target.files[0]
-	if (file) processFile(file)
+	if (file) await processFile(file)
 }
 
-const processFile = (file) => {
+const processFile = async (file) => {
+	const validation = validateImageFile(file, { label: 'La imagen', maxSizeMB: 5 })
+
+	if (!validation.valid) {
+		form.value.ban_imagen = null
+		imagePreview.value = null
+		setFieldError(formErrors, 'ban_imagen', validation.message)
+		clearFileInput(imageInput)
+		return
+	}
+
 	form.value.ban_imagen = file
-	const reader = new FileReader()
-	reader.onload = (e) => (imagePreview.value = e.target.result)
-	reader.readAsDataURL(file)
+	delete formErrors.value.ban_imagen
+	imagePreview.value = await createFilePreview(file)
 }
 
-const handleDrop = (e) => {
+const handleDrop = async (e) => {
 	isDragging.value = false
 	const file = e.dataTransfer.files[0]
-	if (file && file.type.startsWith('image/')) processFile(file)
+	if (file) await processFile(file)
 }
 
 const removeImage = () => {
 	form.value.ban_imagen = null
 	imagePreview.value = null
+	clearFileInput(imageInput)
 }
 
 const saveBanner = async (estatus = null) => {
@@ -77,11 +97,15 @@ const saveBanner = async (estatus = null) => {
 			formErrors.value[campo] = [mensaje]
 		}
 	}
+	if (form.value.ban_enlace_boton && !isValidUrl(form.value.ban_enlace_boton)) {
+		formErrors.value.ban_enlace_boton = ['Ingresa una URL válida que comience con http:// o https://']
+	}
 	if (!form.value.ban_imagen) {
 		formErrors.value.ban_imagen = ['La imagen es obligatoria']
 	}
 
 	if (Object.keys(formErrors.value).length > 0) {
+		logClientValidation('BannerCreateView', formErrors.value)
 		showToast('Por favor completa todos los campos obligatorios', 'error')
 		loading.value = false
 		return
@@ -599,7 +623,7 @@ const saveBanner = async (estatus = null) => {
 							<input
 								ref="imageInput"
 								type="file"
-								accept="image/*"
+								:accept="IMAGE_ACCEPT"
 								class="hidden"
 								@change="handleImageChange"
 							/>
