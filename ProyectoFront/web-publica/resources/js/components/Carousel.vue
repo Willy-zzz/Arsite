@@ -368,7 +368,7 @@ button.next:hover {
   background: #f0f2f5;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 90vh;
+  max-height: 80vh;
   border-radius: 12px;
   overflow: hidden;
 }
