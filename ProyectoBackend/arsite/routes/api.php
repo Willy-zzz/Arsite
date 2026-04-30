@@ -39,6 +39,7 @@ Route::middleware([\App\Http\Middleware\LogPublicApiAccess::class])->group(funct
     Route::get('clientes/public', [ClienteController::class, 'publicClientes']);
     Route::get('/partners/public', [PartnerController::class, 'publicPartners']);
     Route::get('/servicios/public', [ServicioController::class, 'publicServicios']);
+    Route::get('/destacados/public', [DestacadoController::class, 'publicDestacados']);
 });
 
 
