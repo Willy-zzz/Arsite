@@ -34,6 +34,73 @@
         </div>
       </section>
 
+      <!-- Sección DESTACADOS -->
+      <!-- <section class="highlights">
+        <div class="section-heading">
+          <p class="section-kicker">Destacados</p>
+          <h2>Impulsamos proyectos con soluciones listas para entrar en acción</h2>
+          <p class="section-copy">
+            Este bloque conecta lo mejor del CMS con la web pública para mostrar campañas,
+            soluciones clave y accesos rápidos sin repetir el carrusel principal.
+          </p>
+        </div>
+
+        <div v-if="highlightsLoading" class="highlights-grid">
+          <article v-for="n in 3" :key="n" class="highlight-card skeleton-card">
+            <div class="skeleton skeleton-image"></div>
+            <div class="highlight-body">
+              <div class="skeleton skeleton-title"></div>
+              <div class="skeleton skeleton-text"></div>
+              <div class="skeleton skeleton-text short"></div>
+              <div class="skeleton skeleton-button"></div>
+            </div>
+          </article>
+        </div>
+
+        <div v-else-if="highlightsError" class="section-state section-state-error">
+          {{ highlightsError }}
+        </div>
+
+        <div v-else-if="!highlights.length" class="section-state">
+          No hay destacados publicados por el momento.
+        </div>
+
+        <div v-else class="highlights-grid">
+          <article
+            v-for="(highlight, index) in highlights"
+            :key="highlight.id"
+            class="highlight-card"
+            :style="{ animationDelay: `${index * 0.08}s` }"
+          >
+            <div class="highlight-image-wrap">
+              <img
+                :src="highlight.image"
+                :alt="highlight.title"
+                class="highlight-image"
+                loading="lazy"
+              />
+              <div class="highlight-overlay"></div>
+            </div>
+
+            <div class="highlight-body">
+              <p class="highlight-tag">Slider destacado</p>
+              <h3>{{ highlight.title }}</h3>
+              <p class="highlight-subtitle">{{ highlight.subtitle }}</p>
+              <button
+                type="button"
+                class="highlight-link"
+                :class="{ disabled: !highlight.link }"
+                :disabled="!highlight.link"
+                @click="openHighlight(highlight.link)"
+              >
+                {{ highlight.cta }}
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section> -->
+
       <!-- NUEVA SECCIÓN: Eventos y Noticias -->
       <section class="events-news">
         <h2>Eventos y Noticias</h2>
