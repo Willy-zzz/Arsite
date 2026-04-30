@@ -1,3 +1,43 @@
+<template>
+  <nav :class="['navbar', { scrolled: scrolled }]">
+    <div class="nav-container">
+
+      <!-- Logo -->
+      <router-link to="/" class="logo">
+        <img :src="logo" alt="ARSITE" />
+      </router-link>
+
+      <!-- Botón hamburguesa -->
+      <button class="hamburger" @click="open = !open">☰</button>
+
+      <!-- Menú principal -->
+      <ul :class="['menu', { show: open }]">
+        <li><router-link @click="open = false" to="/">Inicio</router-link></li>
+        <li><router-link @click="open = false" to="/nosotros">Nosotros</router-link></li>
+        <li><router-link @click="open = false" to="/productos">Productos</router-link></li>
+        <li><router-link @click="open = false" to="/servicios">Servicios</router-link></li>
+        <li><router-link @click="open = false" to="/partners">Partners</router-link></li>
+        <li><router-link @click="open = false" to="/clientes">Clientes</router-link></li>
+        <li><router-link @click="open = false" to="/soporte">Soporte</router-link></li>
+        <li><router-link @click="open = false" to="/contacto">Contacto</router-link></li>
+
+        <!-- Dropdown solo visible cuando hay sesión activa -->
+        <li v-if="isLoggedIn" class="dropdown" @click.stop="toggleDropdown" @mouseleave="closeDropdown">
+          <a href="#" class="dropdown-toggle" @click.prevent>
+            <span class="user-name">{{ user?.name || user?.username || 'Mi cuenta' }}</span>
+            <span class="arrow" :class="{ rotated: dropdownOpen }">▼</span>
+          </a>
+          <ul class="dropdown-menu" :class="{ 'show-dropdown': dropdownOpen }">
+            <li><router-link @click="closeMenuAndDropdown" to="/soporte/cuenta">Mi perfil</router-link></li>
+            <li><a href="#" @click.prevent="handleLogout">Cerrar sesión</a></li>
+          </ul>
+        </li>
+      </ul>
+
+    </div>
+  </nav>
+</template>
+
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -52,46 +92,6 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
-
-<template>
-  <nav :class="['navbar', { scrolled: scrolled }]">
-    <div class="nav-container">
-
-      <!-- Logo -->
-      <router-link to="/" class="logo">
-        <img :src="logo" alt="ARSITE" />
-      </router-link>
-
-      <!-- Botón hamburguesa -->
-      <button class="hamburger" @click="open = !open">☰</button>
-
-      <!-- Menú principal -->
-      <ul :class="['menu', { show: open }]">
-        <li><router-link @click="open = false" to="/">Inicio</router-link></li>
-        <li><router-link @click="open = false" to="/nosotros">Nosotros</router-link></li>
-        <li><router-link @click="open = false" to="/productos">Productos</router-link></li>
-        <li><router-link @click="open = false" to="/servicios">Servicios</router-link></li>
-        <li><router-link @click="open = false" to="/partners">Partners</router-link></li>
-        <li><router-link @click="open = false" to="/clientes">Clientes</router-link></li>
-        <li><router-link @click="open = false" to="/soporte">Soporte</router-link></li>
-        <li><router-link @click="open = false" to="/contacto">Contacto</router-link></li>
-
-        <!-- Dropdown solo visible cuando hay sesión activa -->
-        <li v-if="isLoggedIn" class="dropdown" @click.stop="toggleDropdown" @mouseleave="closeDropdown">
-          <a href="#" class="dropdown-toggle" @click.prevent>
-            <span class="user-name">{{ user?.name || user?.username || 'Mi cuenta' }}</span>
-            <span class="arrow" :class="{ rotated: dropdownOpen }">▼</span>
-          </a>
-          <ul class="dropdown-menu" :class="{ 'show-dropdown': dropdownOpen }">
-            <li><router-link @click="closeMenuAndDropdown" to="/soporte/cuenta">Mi perfil</router-link></li>
-            <li><a href="#" @click.prevent="handleLogout">Cerrar sesión</a></li>
-          </ul>
-        </li>
-      </ul>
-
-    </div>
-  </nav>
-</template>
 
 <style scoped>
 /* ===== NAVBAR ===== */
