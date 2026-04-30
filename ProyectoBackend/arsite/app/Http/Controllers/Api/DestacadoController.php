@@ -27,7 +27,9 @@ class DestacadoController extends BaseApiController
     {
         //Autoriza automáticamente con policies
         $this->authorizeResource(Destacado::class, 'destacado');
-    }
+        $this->authorizeResource(Destacado::class, 'destacado', [
+            'except' => ['publicDestacados'],
+        ]);    }
 
     /**
      * Display a listing of the resource.
