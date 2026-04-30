@@ -25,7 +25,14 @@
   <div class="carousel-container" v-else-if="slides.length">
     <div class="carousel">
       <div class="slide-wrapper">
-        <img :src="slides[current].image" :key="current" alt="Slide image" />
+        <!-- Animación de entrada/salida para la imagen -->
+        <Transition name="fade" mode="out-in">
+          <img
+            :src="slides[current].image"
+            :key="current"
+            alt="Slide image"
+          />
+        </Transition>
         <div class="overlay"></div>
         <div class="slide-content">
           <h2 class="slide-title" v-html="slides[current].title"></h2>
@@ -101,7 +108,6 @@ const fetchSlides = async () => {
   }
 }
 
-// ─── FIX 4: resetInterval en cada interacción ────────────────────────────────
 let intervalId = null
 
 const resetInterval = () => {
@@ -131,7 +137,6 @@ const goToSlide = (index) => {
   current.value = index
   resetInterval()
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 onMounted(() => {
   fetchSlides()
@@ -147,22 +152,20 @@ onUnmounted(() => {
 /* ==================================================================
    BASE
    ================================================================== */
-
-/* FIX 5: El contenedor usa width 100% y deja que el padre maneje el padding/margen */
 .carousel-container {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  /* Si necesitás los márgenes laterales, ponelos aquí con padding en vez de
-     calc(100% - 240px), así el componente no asume que hay un sidebar */
   padding: 0 120px;
   box-sizing: border-box;
 }
 
+/* ========== NUEVO: FORMA RECTANGULAR EN PANTALLAS GRANDES ========== */
 .carousel {
   position: relative;
-  height: 80vh;
-  min-height: 400px;
+  width: 100%;
+  aspect-ratio: 16 / 9;        /* Rectángulo 16:9 en desktop */
+  max-height: 80vh;
   overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
@@ -174,15 +177,22 @@ onUnmounted(() => {
   height: 100%;
 }
 
-/* FIX 2: object-fit cambiado de contain → cover para evitar bandas laterales */
+/* Animación fade para la imagen */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 .carousel img {
   width: 100%;
   height: 100%;
-  object-fit: contain;  /* cover */
-  object-position: center center;
-  /* background-color ya no es necesario como "relleno" porque cover siempre cubre */
+  object-fit: contain;          /* Cambiado de contain a cover */
   background-color: #78c2e7;
-  transition: opacity 0.5s ease;
+  object-position: center center;
   display: block;
 }
 
@@ -204,7 +214,6 @@ onUnmounted(() => {
 /* ==================================================================
    CONTENIDO DEL SLIDE
    ================================================================== */
-
 .slide-content {
   position: absolute;
   top: 50%;
@@ -215,9 +224,6 @@ onUnmounted(() => {
   max-width: 600px;
   text-align: left;
   animation: fadeInUp 0.8s ease-out;
-
-  /* FIX 1 (base): flex column para que título, descripción y botón
-     siempre sean un bloque unido, sin riesgo de separarse */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -254,7 +260,6 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
   border: 2px solid transparent;
-  /* FIX 1: aseguramos que el botón no sea absolute ni se salga del flujo */
   position: relative;
   flex-shrink: 0;
 }
@@ -289,7 +294,6 @@ onUnmounted(() => {
 /* ==================================================================
    NAVEGACIÓN (prev/next)
    ================================================================== */
-
 button.prev,
 button.next {
   position: absolute;
@@ -323,7 +327,6 @@ button.next:hover {
 /* ==================================================================
    DOTS
    ================================================================== */
-
 .dots {
   position: absolute;
   bottom: 30px;
@@ -360,12 +363,12 @@ button.next:hover {
 /* ==================================================================
    SKELETON
    ================================================================== */
-
 .skeleton-carousel {
   position: relative;
   background: #f0f2f5;
-  height: 80vh;
-  min-height: 400px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 90vh;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -461,7 +464,6 @@ button.next:hover {
 /* ==================================================================
    RESPONSIVE
    ================================================================== */
-
 @media (max-width: 1600px) {
   .carousel-container {
     padding: 0 100px;
@@ -471,10 +473,6 @@ button.next:hover {
 @media (max-width: 1200px) {
   .carousel-container {
     padding: 0 50px;
-  }
-  .carousel,
-  .skeleton-carousel {
-    height: 70vh;
   }
   .slide-content,
   .skeleton-content {
@@ -500,35 +498,31 @@ button.next:hover {
   }
 }
 
-/* =============================================
-   📱 Móvil ≤768px
-   ============================================= */
 @media (max-width: 768px) {
-
   .carousel-container {
     padding: 0 20px;
   }
 
+  /* En móvil quitamos el aspect-ratio fijo para que la altura sea más flexible */
   .carousel,
   .skeleton-carousel {
+    aspect-ratio: auto;
     height: 70vh;
     min-height: 320px;
-    /* Con contain, el fondo expuesto arriba/abajo lo oscurecemos aquí
-       para que el overlay tenga algo uniforme sobre qué actuar */
     background-color: #1a1a2e;
   }
 
-  /* El overlay en móvil cubre TODO el carousel (incluyendo las bandas
-     del contain) con una capa oscura uniforme + gradiente al fondo
-     para dar contraste al texto */
+  .carousel img {
+    object-fit: contain;  /* En móvil a veces es mejor contain para no recortar */
+  }
+
   .overlay {
-    background:
-      linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0.85) 0%,
-        rgba(0, 0, 0, 0.5) 40%,
-        rgba(0, 0, 0, 0.35) 100%
-      );
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.85) 0%,
+      rgba(0, 0, 0, 0.5) 40%,
+      rgba(0, 0, 0, 0.35) 100%
+    );
   }
 
   .slide-content,
@@ -539,13 +533,10 @@ button.next:hover {
     left: 0;
     right: 0;
     transform: none;
-
     padding: 2rem 1.4rem 1rem;
     max-width: 100%;
     text-align: center;
     align-items: center;
-
-    /* Sin background propio: el overlay ya oscurece todo el carrusel */
     background: none;
   }
 
@@ -585,11 +576,7 @@ button.next:hover {
   }
 }
 
-/* =============================================
-   📱 Muy pequeño ≤480px
-   ============================================= */
 @media (max-width: 480px) {
-
   .carousel-container {
     padding: 0 10px;
   }
@@ -610,21 +597,21 @@ button.next:hover {
     font-size: 1.6rem;
     line-height: 1.6;
     position: relative;
-    top: -60px
+    top: -60px;
   }
 
   .slide-description {
     font-size: 0.85rem;
     line-height: 1.35;
     position: relative;
-    top: -60px
+    top: -60px;
   }
 
   .slide-button {
     padding: 8px 18px;
     font-size: 0.85rem;
     position: relative;
-    top: -50px
+    top: -50px;
   }
 
   button.prev,
@@ -639,6 +626,7 @@ button.next:hover {
 </style>
 
 <style>
+/* Estilos globales para resaltar palabras */
 .slide-title span.highlight {
   color: #fbbf24;
   font-weight: 800;
