@@ -1,200 +1,132 @@
-![ARSITE Website](Images/LogoAr-Site4.png)
+# ARSITE Web Pública
 
-# ARSITE Website
+Sitio corporativo público de ARSITE. Esta aplicación entrega la experiencia visible para clientes y visitantes, y consume contenido administrado desde el backend principal.
 
-Sitio web corporativo de ARSITE desarrollado con Laravel y Vue.js.
-Este proyecto presenta la información institucional de la empresa, sus servicios, soluciones tecnológicas, socios y medios de contacto.
+## Objetivo
 
----
+Presentar la información institucional y comercial de la empresa mediante una SPA basada en Vue, servida desde Laravel.
 
-## Tecnologías utilizadas
+## Stack
 
-### Backend
+- PHP `8.2+`
+- Laravel `12`
+- Vue `3`
+- Vue Router `4`
+- Axios
+- Vite `7`
+- Tailwind CSS `4`
+- `vue3-recaptcha2`
 
-* Laravel 10+
-* PHP 8+
-* Blade (para layout base)
-* Vite (build tool)
+## Secciones principales
 
-### Frontend
+- `Home`
+- `About`
+- `Products`
+- `CategoriaProductos`
+- `Services`
+- `Partners`
+- `Clients`
+- `Contact`
+- `Terminos`
+- flujo de soporte en `resources/js/pages/soporte`
 
-* Vue 3
-* JavaScript (ES6+)
-* CSS3
-* Componentes reutilizables
+## Integraciones con backend
 
-### Herramientas
+La web consume endpoints públicos del backend `arsite`, por ejemplo:
 
-* Node.js
-* NPM
-* Git
-* Vite
+- banners del carrusel
+- destacados del home
+- clientes
+- partners
+- servicios
+- formulario de contacto
 
----
+## Estructura principal
 
-## Estructura del proyecto
-
-```
-resources/
-│
-├── js/
-│   ├── components/
-│   │   ├── Hero.vue
-│   │   ├── Footer.vue
-│   │   └── Navbar.vue
-│   │
-│   ├── pages/
-│   │   ├── Home.vue
-│   │   ├── About.vue
-│   │   ├── Partners.vue
-│   │   └── Contact.vue
-│   │
-│   └── app.js
-│
-├── views/
-│   └── app.blade.php
-│
-public/
-└── img/
-```
-
----
-
-## Componentes principales
-
-### Hero.vue
-
-Componente reutilizable que muestra:
-
-* Imagen de fondo
-* Título dinámico
-* Subtítulo opcional
-
-Uso:
-
-```vue
-<Hero
-  title="Nosotros"
-  subtitle="18 años de experiencia"
-  image="/img/nosotros.jpg"
-/>
+```text
+web-publica/
+├─ app/
+├─ public/
+├─ resources/
+│  ├─ css/
+│  └─ js/
+│     ├─ components/
+│     ├─ pages/
+│     ├─ router/
+│     └─ utils/
+├─ routes/
+│  └─ web.php
+└─ package.json
 ```
 
----
+## Requisitos
 
-### Navbar.vue
-
-Barra de navegación principal del sitio.
-
-Incluye acceso a:
-
-* Inicio
-* Nosotros
-* Partners
-* Contacto
-
----
-
-### Footer.vue
-
-Pie de página global reutilizable en todo el sitio.
-
----
-
-## Páginas
-
-### Home
-
-Página principal del sitio.
-
-### About
-
-Contiene:
-
-* Información de la empresa
-* Misión
-* Visión
-* Valores
-* Premios
-
-### Partners
-
-Información de socios tecnológicos.
-
-### Contact
-
-Información de contacto.
-
----
+- PHP `8.2` o superior
+- Composer
+- Node.js `20+`
+- npm
 
 ## Instalación
 
-### 1. Clonar el repositorio
-
-```bash
-git clone https://github.com/usuario/arsite.git
-```
-
----
-
-### 2. Instalar dependencias Laravel
-
 ```bash
 composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate
 ```
 
----
+## Variables de entorno
 
-### 3. Instalar dependencias frontend
+Ejemplo recomendado:
+
+```env
+APP_URL=http://127.0.0.1:8001
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+```
+
+Si se usa reCAPTCHA en producción:
+
+```env
+VITE_RECAPTCHA_SITE_KEY=tu_site_key
+```
+
+## Desarrollo local
+
+Servidor Laravel:
 
 ```bash
-npm install
+php artisan serve --port=8001
 ```
 
----
-
-### 4. Ejecutar entorno de desarrollo
+Assets:
 
 ```bash
 npm run dev
 ```
 
----
-
-### 5. Ejecutar servidor Laravel
+## Build
 
 ```bash
-php artisan serve
+npm run build
 ```
 
----
+## Scripts disponibles
 
-## Acceso
-
-Abrir en navegador:
-
-```
-http://localhost:8000
+```bash
+npm run dev
+npm run build
 ```
 
----
+## Flujo de contenido
 
-## Características
+1. El backend administra banners, destacados, clientes, partners y servicios.
+2. La web pública consulta los endpoints públicos correspondientes.
+3. El visitante ve contenido actualizado sin entrar al CMS.
+4. Formularios como `Contáctanos` envían información al backend para seguimiento administrativo.
 
-* Arquitectura modular basada en componentes
-* Componentes reutilizables
-* Diseño responsive
-* Separación backend y frontend
-* Código escalable
+## Notas
 
----
-
-## Autor
-
-Desarrollado para ARSITE
-
----
-
-## Licencia
-
-Uso interno corporativo.
+- Laravel funciona como contenedor de la aplicación y punto de entrada de la SPA.
+- Vue Router maneja la navegación del lado cliente.
+- La consistencia visual depende de mantener alineadas las rutas públicas del backend con el contenido publicado en CMS.

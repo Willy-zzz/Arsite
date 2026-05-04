@@ -1,44 +1,171 @@
-# arsite-cms
+# ARSITE CMS
 
-This template should help get you started developing with Vue 3 in Vite.
+Panel administrativo del ecosistema ARSITE. Esta aplicación SPA permite administrar el contenido que vive en el backend `arsite`.
 
-## Recommended IDE Setup
+## Objetivo
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+Centralizar la operación de contenido y administración para:
 
-## Recommended Browser Setup
+- usuarios
+- banners
+- destacados
+- productos
+- servicios
+- partners
+- clientes
+- noticias
+- hitos
+- contactos
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-    - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-    - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-    - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-    - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## Stack
 
-## Customize configuration
+- Vue `3`
+- Vite `7`
+- Vue Router `4`
+- Pinia
+- Axios
+- Tailwind CSS `4`
+- TipTap `3`
+- Lowlight
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## Funcionalidades principales
 
-## Project Setup
+- autenticación contra backend con token
+- panel administrativo por módulos
+- formularios de alta y edición
+- carga de imágenes
+- respuestas a contactos desde CMS
+- estadísticas y vistas administrativas
+- validaciones visibles del lado cliente y validaciones backend
 
-```sh
+## Estructura principal
+
+```text
+arsite-cms/
+├─ src/
+│  ├─ components/
+│  ├─ layouts/
+│  ├─ router/
+│  ├─ services/
+│  ├─ stores/
+│  ├─ utils/
+│  └─ views/
+├─ public/
+└─ package.json
+```
+
+## Vistas principales
+
+- `Dashboard`
+- `UsersView`
+- `BannersView`
+- `SlidersView`
+- `ProductsView`
+- `ServicesView`
+- `PartnersView`
+- `ClientsView`
+- `NewsView`
+- `MilestonesView`
+- `ContactView`
+- `Profile`
+
+## Requisitos
+
+- Node.js `20.19+` o `22.12+`
+- npm
+- Backend `arsite` ejecutándose y accesible
+
+## Instalación
+
+```bash
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+## Variables de entorno
 
-```sh
+Crear un archivo `.env` con al menos:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+```
+
+## Desarrollo local
+
+```bash
 npm run dev
 ```
 
-### Compile and Minify for Production
+## Build de producción
 
-```sh
+```bash
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## Scripts disponibles
 
-```sh
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+npm run format
+```
+
+## Flujo de integración con backend
+
+1. El usuario inicia sesión desde el CMS.
+2. El CMS envía credenciales al backend `arsite`.
+3. El backend responde con token y contexto del usuario.
+4. El CMS guarda la sesión y adjunta `Authorization: Bearer <token>` en peticiones privadas.
+5. Cada módulo consume los endpoints protegidos del backend.
+
+## Módulos conectados a backend
+
+- Usuarios
+- Contactos
+- Banners
+- Destacados
+- Productos
+- Servicios
+- Partners
+- Clientes
+- Noticias
+- Hitos
+
+## Edición enriquecida
+
+El módulo de noticias utiliza TipTap con:
+
+- tablas
+- imágenes
+- color de texto
+- resaltado
+- alineación
+- conteo de caracteres
+- bloques de código
+
+## Convenciones útiles
+
+- `src/services/api.js`: integración Axios
+- `src/stores/`: estado global con Pinia
+- `src/utils/`: helpers compartidos, formateo y validación
+- `src/views/`: pantallas principales por módulo
+
+## Calidad y mantenimiento
+
+Lint:
+
+```bash
 npm run lint
 ```
+
+Formato:
+
+```bash
+npm run format
+```
+
+## Relación con otras apps
+
+- Consume la API de `ProyectoBackend/arsite`
+- Administra el contenido que después se publica en `ProyectoFront/web-publica`
