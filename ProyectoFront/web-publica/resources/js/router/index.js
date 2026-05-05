@@ -8,12 +8,17 @@ import SoporteLayout from '@/layouts/SoporteLayout.vue'
 import Home from '../pages/Home.vue'
 import About from '../pages/About.vue'
 
-import Products from '../pages/Products.vue'
-import CategoriaProductos from '../pages/CategoriaProductos.vue'
-
 import Services from '../pages/Services.vue'
 import Partners from '../pages/Partners.vue'
 import Clients from '../pages/Clients.vue'
+
+import Contact from '../pages/Contact.vue'
+import NotFound from '../pages/NotFound.vue'
+import Terminos from '../pages/Terminos.vue'
+
+// paginas productos
+import Products from '../pages/Products.vue'
+import CategoriaProductos from '../pages/CategoriaProductos.vue'
 
 // Páginas de soporte
 import LoginPage from '../pages/soporte/LoginPage.vue'
@@ -22,12 +27,7 @@ import RecuperarPage from '../pages/soporte/RecuperarPage.vue'
 import RegistroPage from '../pages/soporte/RegistroPage.vue'
 import CuentaPage from '../pages/soporte/CuentaPage.vue'
 
-import Contact from '../pages/Contact.vue'
-import NotFound from '../pages/NotFound.vue'
-import Terminos from '../pages/Terminos.vue'
-
-//import EnConstruccion from '../pages/EnConstruccion.vue'
-
+// //import EnConstruccion from '../pages/EnConstruccion.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -52,10 +52,6 @@ const routes = [
       return isLoggedIn.value ? '/soporte/helpdesk' : '/soporte/login'
     },
     children: [
-      // No pongas una ruta vacía '' porque ya tienes redirect arriba
-      // Si quisieras una página principal en /soporte (sin redirigir), la pondrías aquí,
-      // pero como quieres que muestre login o helpdesk, el redirect ya lo hace.
-
       { path: 'login', name: 'soporte.login', component: LoginPage, meta: { guest: true } },
       { path: 'helpdesk', name: 'soporte.helpdesk', component: HelpDeskPage, meta: { requiresAuth: true } },
       { path: 'recuperar', component: RecuperarPage, meta: { guest: true } },
