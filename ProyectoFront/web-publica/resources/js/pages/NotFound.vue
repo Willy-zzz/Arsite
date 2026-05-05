@@ -1,11 +1,11 @@
 <template>
     <div class="not-found-page">
         <!-- Hero con clase personalizada para estilos únicos -->
-        <Hero class="notfound-hero" 
+        <!-- <Hero class="notfound-hero" 
             title="404" 
             subtitle="Página no encontrada" 
             image="/img/404-bg.png" 
-        />
+        /> -->
 
         <!-- Contenido adicional -->
         <section class="not-found-content">
@@ -30,7 +30,12 @@ import Hero from '@/components/Hero.vue'
 
 <style scoped>
 .not-found-page {
-    min-height: 100vh;
+    /* Ocupa toda la altura disponible  */
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
 }
 
 /* ===== ESTILOS PERSONALIZADOS PARA EL HERO ===== */
@@ -69,7 +74,7 @@ import Hero from '@/components/Hero.vue'
 :deep(.notfound-hero .overlay p) {
     font-size: 2.5rem;
     margin: 0;
-    color: #fbbf24;;
+    color: #fbbf24;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
     font-weight: 300;
     letter-spacing: 1px;
@@ -77,8 +82,8 @@ import Hero from '@/components/Hero.vue'
 
 /* ===== ESTILOS DEL CONTENIDO INFERIOR ===== */
 .not-found-content {
-    padding: 60px 20px;
-    background: #f8fafc;
+    width: 100%;
+    padding: 20px;
     text-align: center;
 }
 
