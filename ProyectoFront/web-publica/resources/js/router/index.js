@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuth } from '@/composables/useAuth' 
+import { useAuth } from '@/composables/useAuth'
 
+// Layouts
+import SoporteLayout from '@/layouts/SoporteLayout.vue'
 
+// Páginas normales
 import Home from '../pages/Home.vue'
 import About from '../pages/About.vue'
 
@@ -12,6 +15,7 @@ import Services from '../pages/Services.vue'
 import Partners from '../pages/Partners.vue'
 import Clients from '../pages/Clients.vue'
 
+// Páginas de soporte
 import LoginPage from '../pages/soporte/LoginPage.vue'
 import HelpDeskPage from '../pages/soporte/HelpDeskPage.vue'
 import RecuperarPage from '../pages/soporte/RecuperarPage.vue'
@@ -36,26 +40,33 @@ const routes = [
   { path: '/partners', component: Partners },
   { path: '/clientes', component: Clients },
   
-  
-  { path: '/soporte/login', name: 'soporte.login', component: LoginPage,meta: { guest: true } }, // solo usuarios no autenticados
-  { path: '/soporte/helpdesk', name: 'soporte.helpdesk', component: HelpDeskPage, meta: { requiresAuth: true } },
-  { path: '/soporte/recuperar', component: RecuperarPage, meta: { guest: true } },
-  { path: '/soporte/registro', component: RegistroPage, meta: { guest: true } },
-  { path: '/soporte/cuenta', component: CuentaPage, meta: { requiresAuth: true } },
-  // Opcional: redirigir /soporte a login o helpdesk según autenticación
-  {
-    path: '/soporte',
-    redirect: () => {
-      const { isLoggedIn } = useAuth()
-      return isLoggedIn ? '/soporte/helpdesk' : '/soporte/login'
-    }
-  },
-
-
   { path: '/contacto', component: Contact },
   { path: '/terminos', component: Terminos },
 
-  // 404
+  //soporte
+  { path: '/soporte',
+    component: SoporteLayout,   // Layout con <router-view />
+    // Redirección por defecto: si estás logueado vas a helpdesk, si no a login
+    redirect: (to) => {
+      const { isLoggedIn } = useAuth()
+      return isLoggedIn.value ? '/soporte/helpdesk' : '/soporte/login'
+    },
+    children: [
+      // No pongas una ruta vacía '' porque ya tienes redirect arriba
+      // Si quisieras una página principal en /soporte (sin redirigir), la pondrías aquí,
+      // pero como quieres que muestre login o helpdesk, el redirect ya lo hace.
+
+      { path: 'login', name: 'soporte.login', component: LoginPage, meta: { guest: true } },
+      { path: 'helpdesk', name: 'soporte.helpdesk', component: HelpDeskPage, meta: { requiresAuth: true } },
+      { path: 'recuperar', component: RecuperarPage, meta: { guest: true } },
+      { path: 'registro', component: RegistroPage, meta: { guest: true } },
+      { path: 'cuenta', component: CuentaPage, meta: { requiresAuth: true } },
+    ]
+  },
+
+
+
+  // 404 al final 
   { path: '/:pathMatch(.*)*', component: NotFound },
   
 ]
